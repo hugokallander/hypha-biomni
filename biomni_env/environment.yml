@@ -1,19 +1,62 @@
-name: biomni_e1
+name: biomni
 channels:
   - conda-forge
-  - defaults
   - bioconda
+  - defaults
 dependencies:
   - python=3.11
   - pip
+  # Core numeric & utils
+  - numpy=2.1
+  - pandas
+  - scipy
+  - matplotlib
+  - seaborn
+  - networkx
+  - statsmodels
+  - scikit-learn
+  - pyyaml
+  - requests
+  - tqdm
+  - regex
+  - sympy
+  - pyarrow
+  # Bio / scientific
+  - biopython
+  - pybedtools
+  - viennarna
+  - libsbml
+  - msprime
+  - cooler
+  - pyliftover
+  - pykalman
+  - trackpy
+  - scanpy
+  - scvi-tools
+  - cobra
+  - simpleitk
+  - nibabel
+  - opencv
+  - rdkit
+  - gseapy
+  - gget
+  - reportlab
+  - python-louvain
+  - cellpose
+  - muscle
+  # ML / imaging
+  - pytorch
+  - torchvision
+  - torchaudio
+  - accelerate
+  # Jupyter / dev
+  - jupyter
+  - notebook
+  - ipykernel
+  - pytest
+  # Optional chemistry / pharma (uncomment if needed)
+  # - openbabel
   - pip:
-      - numpy==2.1
-      - pandas
-      - matplotlib
-      - scipy
-      - statsmodels
-      - scikit-learn
-      - gradio
       - langchain
       - langgraph==0.3.18
       - langchain-openai
@@ -21,19 +64,24 @@ dependencies:
       - langchain-ollama
       - langchain-community
       - openai
-      - beautifulsoup4
-      - lxml
-      - tqdm
-      - seaborn
-      - networkx
-      - requests
-      - pyyaml
-      - jupyter
-      - notebook
-      - ipykernel
-      - pytest
       - transformers
       - sentencepiece
+      - hypha-rpc==0.20.78
+      - anyio==4.10.0
+      - python-dotenv
       - mcp
       - tooluniverse
-      - python-dotenv
+      - gradio
+      - beautifulsoup4
+      - lxml
+      - PyPDF2
+      - googlesearch-python
+      - arxiv
+      - harmonypy
+      - DeepPurpose
+      - FlowCytometryTools
+      - tdc
+      - pymed
+      # Optional / uncommon (leave commented unless required)
+      # - eval-single-anndata
+      # - torchmetrics

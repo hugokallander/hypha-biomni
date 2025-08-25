@@ -1,9 +1,8 @@
 def query_chatnt(question, sequence, device=-1):
-    """
-    Call ChatNT to answer a question about a DNA sequence.
+    """Call ChatNT to answer a question about a DNA sequence.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     question : str
         Question to ask about the DNA sequence
     sequence : str
@@ -11,12 +10,12 @@ def query_chatnt(question, sequence, device=-1):
     device : int, optional
         Device to use for the ChatNT model. Default is -1 (CPU).
 
-    Returns:
-    --------
+    Returns
+    -------
     str
         Answer to the question
+
     """
-    import torch
     from transformers import pipeline
 
     pipe = pipeline(model="InstaDeepAI/ChatNT", trust_remote_code=True, device=device)
@@ -26,20 +25,23 @@ def query_chatnt(question, sequence, device=-1):
     dna_sequences = [sequence]
 
     # Generate sequence
-    generated_english_sequence = pipe(inputs={"english_sequence": english_sequence, "dna_sequences": dna_sequences})
+    generated_english_sequence = pipe(
+        inputs={"english_sequence": english_sequence, "dna_sequences": dna_sequences}
+    )
 
     return generated_english_sequence
 
 
-def perform_flux_balance_analysis(model_file, constraints=None, objective_reaction=None, output_file="fba_results.csv"):
-    """
-    Perform Flux Balance Analysis (FBA) on a genome-scale metabolic network model.
+def perform_flux_balance_analysis(
+    model_file, constraints=None, objective_reaction=None, output_file="fba_results.csv"
+):
+    """Perform Flux Balance Analysis (FBA) on a genome-scale metabolic network model.
 
     FBA is a computational technique that predicts metabolic flux distributions
     by formulating and solving a linear optimization problem.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     model_file : str
         Path to the metabolic model file (SBML or JSON format)
     constraints : dict, optional
@@ -51,13 +53,12 @@ def perform_flux_balance_analysis(model_file, constraints=None, objective_reacti
     output_file : str, optional
         File name to save the flux distribution results
 
-    Returns:
-    --------
+    Returns
+    -------
     str
         Research log summarizing the FBA process and results
-    """
-    import os
 
+    """
     import cobra
     import pandas as pd
 
@@ -76,7 +77,7 @@ def perform_flux_balance_analysis(model_file, constraints=None, objective_reacti
         log += f"- Successfully loaded model from {model_file}\n"
         log += f"- Model contains {len(model.reactions)} reactions and {len(model.metabolites)} metabolites\n\n"
     except Exception as e:
-        log += f"- Error loading model: {str(e)}\n"
+        log += f"- Error loading model: {e!s}\n"
         return log
 
     # Step 2: Set constraints
@@ -89,7 +90,7 @@ def perform_flux_balance_analysis(model_file, constraints=None, objective_reacti
                 reaction.bounds = (lb, ub)
                 log += f"  * {reaction_id}: lower_bound={lb}, upper_bound={ub}\n"
             except Exception as e:
-                log += f"  * Error setting constraint for {reaction_id}: {str(e)}\n"
+                log += f"  * Error setting constraint for {reaction_id}: {e!s}\n"
     else:
         log += "- No additional constraints specified, using model defaults\n"
     log += "\n"
@@ -101,7 +102,7 @@ def perform_flux_balance_analysis(model_file, constraints=None, objective_reacti
             model.objective = objective_reaction
             log += f"- Set objective function to maximize {objective_reaction}\n\n"
         except Exception as e:
-            log += f"- Error setting objective function: {str(e)}\n"
+            log += f"- Error setting objective function: {e!s}\n"
             log += "- Using model's default objective function\n\n"
     else:
         log += f"- Using model's default objective function: {model.objective.expression}\n\n"
@@ -113,7 +114,7 @@ def perform_flux_balance_analysis(model_file, constraints=None, objective_reacti
         log += f"- Optimization status: {solution.status}\n"
         log += f"- Objective value: {solution.objective_value:.6f}\n\n"
     except Exception as e:
-        log += f"- Error during optimization: {str(e)}\n"
+        log += f"- Error during optimization: {e!s}\n"
         return log
 
     # Step 5: Save and report results
@@ -127,7 +128,7 @@ def perform_flux_balance_analysis(model_file, constraints=None, objective_reacti
             "flux": [solution.fluxes[r.id] for r in model.reactions],
             "lower_bound": [r.lower_bound for r in model.reactions],
             "upper_bound": [r.upper_bound for r in model.reactions],
-        }
+        },
     )
 
     # Save to file
@@ -139,7 +140,9 @@ def perform_flux_balance_analysis(model_file, constraints=None, objective_reacti
     log += f"- Number of active reactions (flux > 1e-6): {len(active_reactions)}\n"
 
     # Report top reactions by absolute flux
-    top_reactions = flux_distribution.iloc[abs(flux_distribution["flux"]).argsort()[::-1]].head(10)
+    top_reactions = flux_distribution.iloc[
+        abs(flux_distribution["flux"]).argsort()[::-1]
+    ].head(10)
     log += "- Top 10 reactions by absolute flux magnitude:\n"
     for _, row in top_reactions.iterrows():
         log += f"  * {row['reaction_id']} ({row['reaction_name']}): {row['flux']:.6f}\n"
@@ -149,12 +152,13 @@ def perform_flux_balance_analysis(model_file, constraints=None, objective_reacti
     return log
 
 
-def model_protein_dimerization_network(monomer_concentrations, dimerization_affinities, network_topology):
-    """
-    Model protein dimerization networks to find equilibrium concentrations of dimers.
+def model_protein_dimerization_network(
+    monomer_concentrations, dimerization_affinities, network_topology
+):
+    """Model protein dimerization networks to find equilibrium concentrations of dimers.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     monomer_concentrations : dict
         Dictionary mapping monomer names to their initial concentrations (in arbitrary units)
     dimerization_affinities : dict
@@ -162,10 +166,11 @@ def model_protein_dimerization_network(monomer_concentrations, dimerization_affi
     network_topology : list of tuples
         List of (monomer1, monomer2) pairs that can form dimers
 
-    Returns:
-    --------
+    Returns
+    -------
     str
         Research log summarizing the modeling process and results
+
     """
     import time
 
@@ -217,7 +222,9 @@ def model_protein_dimerization_network(monomer_concentrations, dimerization_affi
         dimer_concs = y[num_monomers:]
 
         # Calculate rate of change for each species
-        for i, ((m1_idx, m2_idx), affinity) in enumerate(zip(dimer_pairs, dimer_affinities, strict=False)):
+        for i, ((m1_idx, m2_idx), affinity) in enumerate(
+            zip(dimer_pairs, dimer_affinities, strict=False)
+        ):
             # Formation rate: kon * [A] * [B]
             # Dissociation rate: koff * [AB]
             # At equilibrium: kon/koff = Ka (affinity)
@@ -255,8 +262,13 @@ def model_protein_dimerization_network(monomer_concentrations, dimerization_affi
     )
 
     # Extract final concentrations (equilibrium)
-    final_monomer_concs = {monomer: sol.y[idx][-1] for monomer, idx in monomer_to_idx.items()}
-    final_dimer_concs = {dimer_name: sol.y[num_monomers + i][-1] for i, dimer_name in enumerate(dimer_names)}
+    final_monomer_concs = {
+        monomer: sol.y[idx][-1] for monomer, idx in monomer_to_idx.items()
+    }
+    final_dimer_concs = {
+        dimer_name: sol.y[num_monomers + i][-1]
+        for i, dimer_name in enumerate(dimer_names)
+    }
 
     # Calculate time taken
     elapsed_time = time.time() - start_time
@@ -294,13 +306,16 @@ def model_protein_dimerization_network(monomer_concentrations, dimerization_affi
 
 
 def simulate_metabolic_network_perturbation(
-    model_file, initial_concentrations, perturbation_params, simulation_time=100, time_points=1000
+    model_file,
+    initial_concentrations,
+    perturbation_params,
+    simulation_time=100,
+    time_points=1000,
 ):
-    """
-    Construct and simulate kinetic models of metabolic networks and analyze their responses to perturbations.
+    """Construct and simulate kinetic models of metabolic networks and analyze their responses to perturbations.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     model_file : str
         Path to the COBRA model file (SBML format)
     initial_concentrations : dict
@@ -315,13 +330,12 @@ def simulate_metabolic_network_perturbation(
     time_points : int, optional
         Number of time points to simulate (default: 1000)
 
-    Returns:
-    --------
+    Returns
+    -------
     str
         Research log summarizing the steps taken and results obtained
-    """
-    import os
 
+    """
     import cobra
     import numpy as np
     import pandas as pd
@@ -332,7 +346,7 @@ def simulate_metabolic_network_perturbation(
         model = cobra.io.read_sbml_model(model_file)
         log = f"Loaded metabolic model from {model_file} with {len(model.reactions)} reactions and {len(model.metabolites)} metabolites.\n\n"
     except Exception as e:
-        return f"Error loading model: {str(e)}"
+        return f"Error loading model: {e!s}"
 
     # Step 2: Set up metabolite list and initial concentrations
     metabolites = list(model.metabolites)
@@ -370,13 +384,17 @@ def simulate_metabolic_network_perturbation(
         # Calculate reaction rates
         rates = {}
         for reaction in reactions:
-            rates[reaction.id] = mass_action_kinetics(reaction, concentrations, metabolite_ids)
+            rates[reaction.id] = mass_action_kinetics(
+                reaction, concentrations, metabolite_ids
+            )
 
         # Update concentration changes based on stoichiometry and rates
         for i, metabolite_id in enumerate(metabolite_ids):
             for reaction in reactions:
                 if metabolite_id in [m.id for m in reaction.metabolites]:
-                    coeff = reaction.metabolites[model.metabolites.get_by_id(metabolite_id)]
+                    coeff = reaction.metabolites[
+                        model.metabolites.get_by_id(metabolite_id)
+                    ]
                     dC_dt[i] += coeff * rates[reaction.id]
 
         return dC_dt
@@ -395,16 +413,20 @@ def simulate_metabolic_network_perturbation(
 
     try:
         solution = solve_ivp(
-            lambda t, y: ode_system(t, y, metabolite_ids, model.reactions, perturbation),
+            lambda t, y: ode_system(
+                t, y, metabolite_ids, model.reactions, perturbation
+            ),
             t_span,
             conc_array,
             t_eval=t_eval,
             method="LSODA",
         )
 
-        log += f"Simulation completed successfully with {len(solution.t)} time points.\n\n"
+        log += (
+            f"Simulation completed successfully with {len(solution.t)} time points.\n\n"
+        )
     except Exception as e:
-        return f"Error during simulation: {str(e)}"
+        return f"Error during simulation: {e!s}"
 
     # Step 6: Calculate fluxes at each time point
     fluxes = np.zeros((len(solution.t), len(model.reactions)))
@@ -417,7 +439,9 @@ def simulate_metabolic_network_perturbation(
             perturbation_temp["applied"] = True
 
         for r_idx, reaction in enumerate(model.reactions):
-            fluxes[t_idx, r_idx] = mass_action_kinetics(reaction, concentrations, metabolite_ids)
+            fluxes[t_idx, r_idx] = mass_action_kinetics(
+                reaction, concentrations, metabolite_ids
+            )
 
     log += "Calculated reaction fluxes for all time points.\n\n"
 
@@ -442,7 +466,11 @@ def simulate_metabolic_network_perturbation(
     # Find metabolites with significant changes
     significant_changes = []
     for i, m_id in enumerate(metabolite_ids):
-        rel_change = abs(post_perturb[i] - pre_perturb[i]) / pre_perturb[i] if pre_perturb[i] > 0 else 0
+        rel_change = (
+            abs(post_perturb[i] - pre_perturb[i]) / pre_perturb[i]
+            if pre_perturb[i] > 0
+            else 0
+        )
         if rel_change > 0.05:  # 5% change threshold
             significant_changes.append((m_id, rel_change))
 
@@ -452,7 +480,9 @@ def simulate_metabolic_network_perturbation(
 
     if significant_changes:
         log += "Top 5 most affected metabolites (by relative concentration change):\n"
-        for m_id, change in sorted(significant_changes, key=lambda x: x[1], reverse=True)[:5]:
+        for m_id, change in sorted(
+            significant_changes, key=lambda x: x[1], reverse=True
+        )[:5]:
             log += f"  - {m_id}: {change * 100:.2f}% change\n"
 
     log += "\nSimulation and perturbation analysis completed successfully."
@@ -461,13 +491,16 @@ def simulate_metabolic_network_perturbation(
 
 
 def simulate_protein_signaling_network(
-    network_structure, reaction_params, species_params, simulation_time=100, time_points=1000
+    network_structure,
+    reaction_params,
+    species_params,
+    simulation_time=100,
+    time_points=1000,
 ):
-    """
-    Simulate protein signaling network dynamics using ODE-based logic modeling with normalized Hill functions.
+    """Simulate protein signaling network dynamics using ODE-based logic modeling with normalized Hill functions.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     network_structure : dict
         Dictionary defining the network topology. Each key is a target protein and its value is a list of tuples
         (regulator, regulation_type) where regulation_type is 1 for activation and -1 for inhibition.
@@ -486,10 +519,11 @@ def simulate_protein_signaling_network(
     time_points : int, optional
         Number of time points for the simulation. Default is 1000.
 
-    Returns:
-    --------
+    Returns
+    -------
     str
         Research log summarizing the simulation process and results.
+
     """
     import csv
 
@@ -566,7 +600,9 @@ def simulate_protein_signaling_network(
     t_eval = np.linspace(0, simulation_time, time_points)
 
     # Solve the ODE system
-    solution = solve_ivp(ode_system, t_span, y0, method="LSODA", t_eval=t_eval, rtol=1e-6, atol=1e-9)
+    solution = solve_ivp(
+        ode_system, t_span, y0, method="LSODA", t_eval=t_eval, rtol=1e-6, atol=1e-9
+    )
 
     # Save results to CSV
     output_file = "protein_signaling_simulation_results.csv"
@@ -605,12 +641,17 @@ def simulate_protein_signaling_network(
     return log
 
 
-def compare_protein_structures(pdb_file1, pdb_file2, chain_id1="A", chain_id2="A", output_prefix="protein_comparison"):
-    """
-    Compares two protein structures to identify structural differences and conformational changes.
+def compare_protein_structures(
+    pdb_file1,
+    pdb_file2,
+    chain_id1="A",
+    chain_id2="A",
+    output_prefix="protein_comparison",
+):
+    """Compares two protein structures to identify structural differences and conformational changes.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     pdb_file1 : str
         Path to the first PDB file
     pdb_file2 : str
@@ -622,12 +663,12 @@ def compare_protein_structures(pdb_file1, pdb_file2, chain_id1="A", chain_id2="A
     output_prefix : str, optional
         Prefix for output files (default: "protein_comparison")
 
-    Returns:
-    --------
+    Returns
+    -------
     str
         A research log summarizing the structural comparison analysis
+
     """
-    import os
     import warnings
 
     import numpy as np
@@ -656,7 +697,7 @@ def compare_protein_structures(pdb_file1, pdb_file2, chain_id1="A", chain_id2="A
         research_log.append(f"Successfully loaded chain {chain_id1} from {pdb_file1}")
         research_log.append(f"Successfully loaded chain {chain_id2} from {pdb_file2}")
     except KeyError as e:
-        return f"Error: Chain not found: {str(e)}"
+        return f"Error: Chain not found: {e!s}"
 
     # Get CA atoms for alignment
     ca_atoms1 = []
@@ -722,17 +763,23 @@ def compare_protein_structures(pdb_file1, pdb_file2, chain_id1="A", chain_id2="A
     io.set_structure(structure2)
     io.save(aligned_file2, select=Select())
 
-    research_log.append(f"Aligned structures saved as {aligned_file1} and {aligned_file2}")
+    research_log.append(
+        f"Aligned structures saved as {aligned_file1} and {aligned_file2}"
+    )
 
     # Report on significant differences
     if significant_changes:
         research_log.append(
-            f"\nIdentified {len(significant_changes)} residues with significant conformational changes:"
+            f"\nIdentified {len(significant_changes)} residues with significant conformational changes:",
         )
         for res_id, res_name, distance in significant_changes:
-            research_log.append(f"  - Residue {res_name}{res_id}: {distance:.2f} Å displacement")
+            research_log.append(
+                f"  - Residue {res_name}{res_id}: {distance:.2f} Å displacement"
+            )
     else:
-        research_log.append("\nNo significant conformational changes detected (threshold: 2.0 Å)")
+        research_log.append(
+            "\nNo significant conformational changes detected (threshold: 2.0 Å)"
+        )
 
     # Save per-residue distance data
     distance_file = f"{output_prefix}_residue_distances.csv"
@@ -751,7 +798,9 @@ def compare_protein_structures(pdb_file1, pdb_file2, chain_id1="A", chain_id2="A
         if not current_region or res_id == current_region[-1][0] + 1:
             current_region.append((res_id, distance))
         else:
-            if len(current_region) >= 3:  # Consider regions with at least 3 consecutive residues
+            if (
+                len(current_region) >= 3
+            ):  # Consider regions with at least 3 consecutive residues
                 regions.append(current_region)
             current_region = [(res_id, distance)]
 
@@ -764,26 +813,35 @@ def compare_protein_structures(pdb_file1, pdb_file2, chain_id1="A", chain_id2="A
             start_res = region[0][0]
             end_res = region[-1][0]
             avg_dist = sum(r[1] for r in region) / len(region)
-            research_log.append(f"Region {i}: Residues {start_res}-{end_res} (Average displacement: {avg_dist:.2f} Å)")
+            research_log.append(
+                f"Region {i}: Residues {start_res}-{end_res} (Average displacement: {avg_dist:.2f} Å)"
+            )
 
     research_log.append("\n## Summary")
     research_log.append(f"- Compared structures from {pdb_file1} and {pdb_file2}")
     research_log.append(f"- Overall RMSD: {rmsd:.4f} Å")
-    research_log.append(f"- {len(significant_changes)} residues with significant conformational changes")
+    research_log.append(
+        f"- {len(significant_changes)} residues with significant conformational changes"
+    )
     research_log.append(f"- {len(regions)} continuous regions of conformational change")
-    research_log.append(f"- Files generated: {aligned_file1}, {aligned_file2}, {distance_file}")
+    research_log.append(
+        f"- Files generated: {aligned_file1}, {aligned_file2}, {distance_file}"
+    )
 
     return "\n".join(research_log)
 
 
 def simulate_renin_angiotensin_system_dynamics(
-    initial_concentrations, rate_constants, feedback_params, simulation_time=48, time_points=100
+    initial_concentrations,
+    rate_constants,
+    feedback_params,
+    simulation_time=48,
+    time_points=100,
 ):
-    """
-    Simulate the time-dependent concentrations of renin-angiotensin system (RAS) components.
+    """Simulate the time-dependent concentrations of renin-angiotensin system (RAS) components.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     initial_concentrations : dict
         Initial concentrations of RAS components with keys:
         'renin', 'angiotensinogen', 'angiotensin_I', 'angiotensin_II',
@@ -805,13 +863,12 @@ def simulate_renin_angiotensin_system_dynamics(
     time_points : int, optional
         Number of time points to evaluate (default: 100)
 
-    Returns:
-    --------
+    Returns
+    -------
     str
         Research log summarizing the simulation steps and results
-    """
-    import os
 
+    """
     import numpy as np
     import pandas as pd
     from scipy.integrate import solve_ivp
@@ -831,7 +888,9 @@ def simulate_renin_angiotensin_system_dynamics(
         renin, agt, ang_I, ang_II, ace2_ang_II, ang_1_7 = y
 
         # Production rates with feedback
-        renin_production = rate_constants["k_ren"] * (1 / (1 + feedback_params["fb_ang_II"] * ang_II))
+        renin_production = rate_constants["k_ren"] * (
+            1 / (1 + feedback_params["fb_ang_II"] * ang_II)
+        )
         agt_production = rate_constants["k_agt"]
 
         # Conversion rates
@@ -863,7 +922,9 @@ def simulate_renin_angiotensin_system_dynamics(
     t_eval = np.linspace(0, simulation_time, time_points)
 
     # Solve the ODE system
-    solution = solve_ivp(ras_ode_system, t_span, y0, method="RK45", t_eval=t_eval, rtol=1e-6)
+    solution = solve_ivp(
+        ras_ode_system, t_span, y0, method="RK45", t_eval=t_eval, rtol=1e-6
+    )
 
     # Create DataFrame with results
     component_names = [
