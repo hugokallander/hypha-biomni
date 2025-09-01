@@ -54,8 +54,9 @@ ENV PATH=/opt/conda/envs/base/bin:/opt/conda/bin:$PATH \
     HOME=/home/${MAMBA_USER} \
     XDG_CACHE_HOME=/home/${MAMBA_USER}/.cache \
     MAMBA_ROOT_PREFIX=/opt/conda
-RUN mkdir -p /home/${MAMBA_USER}/.cache/mamba /home/${MAMBA_USER}/.cache/pip && \
-    chown -R ${MAMBA_USER}:${MAMBA_USER} /home/${MAMBA_USER}/.cache
+RUN mkdir -p /home/${MAMBA_USER}/.cache/mamba/proc /home/${MAMBA_USER}/.cache/pip && \
+    chown -R ${MAMBA_USER}:${MAMBA_USER} /home/${MAMBA_USER}/.cache && \
+    chmod -R 0777 /home/${MAMBA_USER}/.cache
 VOLUME ["/data"]
 
 # Default command runs tool listing; can override with other scripts
