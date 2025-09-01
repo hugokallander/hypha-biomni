@@ -50,7 +50,12 @@ RUN if [ "$INSTALL_EXTRAS" = "0" ]; then \
     fi
 
 ENV PATH=/opt/conda/envs/base/bin:/opt/conda/bin:$PATH \
-    BIOMNI_DATA_PATH=/data
+    BIOMNI_DATA_PATH=/data \
+    HOME=/home/${MAMBA_USER} \
+    XDG_CACHE_HOME=/home/${MAMBA_USER}/.cache \
+    MAMBA_ROOT_PREFIX=/opt/conda
+RUN mkdir -p /home/${MAMBA_USER}/.cache/mamba /home/${MAMBA_USER}/.cache/pip && \
+    chown -R ${MAMBA_USER}:${MAMBA_USER} /home/${MAMBA_USER}/.cache
 VOLUME ["/data"]
 
 # Default command runs tool listing; can override with other scripts
