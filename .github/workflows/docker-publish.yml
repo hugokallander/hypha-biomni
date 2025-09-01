@@ -11,6 +11,17 @@ on:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - name: base
+            install_extras: '0'
+            gpu: '0'
+            suffix: ''
+          - name: extras
+            install_extras: '1'
+            gpu: '0'
+            suffix: '-extras'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4.1.0
@@ -39,11 +50,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push Docker image
+      - name: Build and push Docker image (${{ matrix.name }})
         uses: docker/build-push-action@v5.0.0
         with:
           context: .
           file: docker/Dockerfile
           push: ${{ github.event_name == 'push' }}
-          tags: ${{ steps.meta.outputs.tags }}
+          build-args: |
+            INSTALL_EXTRAS=${{ matrix.install_extras }}
+            GPU=${{ matrix.gpu }}
+          tags: |
+            ${{ steps.meta.outputs.tags }}${{ matrix.suffix }}
           labels: ${{ steps.meta.outputs.labels }}
