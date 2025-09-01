@@ -1,0 +1,40 @@
+name: biomni-base
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+channel_priority: strict
+dependencies:
+  - python=3.11
+  - pip
+  # Core numeric & data
+  - numpy=2.1
+  - pandas
+  - scipy
+  - pyarrow
+  - pyyaml
+  - requests
+  - tqdm
+  - regex
+  - sympy
+  - scikit-learn
+  - matplotlib
+  - seaborn
+  - networkx
+  - statsmodels
+  # Bio core (lightweight)
+  - biopython
+  - pyliftover
+  - msprime
+  - simpleitk
+  - nibabel
+  - muscle
+  # (Torch moved to extras to avoid solver failures in minimal base)
+  # Jupyter kernel minimal (optional to remove in production)
+  - ipykernel
+  - pip:
+      - hypha-rpc==0.20.78
+      - anyio==4.10.0
+      - python-dotenv
+      - mcp
+      - tooluniverse

@@ -223,6 +223,38 @@ Let’s build it together.
 
 More to come!
 
+## Docker Images
+
+Build a slim CPU base image (core libraries only):
+
+```bash
+docker build -t biomni-base --build-arg INSTALL_EXTRAS=0 --build-arg GPU=0 -f docker/Dockerfile .
+```
+
+Build full feature (heavy extras) CPU image:
+
+```bash
+docker build -t biomni-full --build-arg INSTALL_EXTRAS=1 --build-arg GPU=0 -f docker/Dockerfile .
+```
+
+Enable GPU (CUDA) variant (only if host has NVIDIA + Docker supports GPU):
+
+```bash
+docker build -t biomni-gpu --build-arg INSTALL_EXTRAS=1 --build-arg GPU=1 -f docker/Dockerfile .
+```
+
+Run a quick smoke test inside the image:
+
+```bash
+docker run --rm biomni-base python docker/smoke_test.py
+```
+
+Environment layout (split):
+- `biomni_env/environment.base.yml`: core + light bio + CPU torch
+- `biomni_env/environment.extras.yml`: heavy bioinformatics, ML, notebook stack
+- Build args: `INSTALL_EXTRAS`, `GPU` control optional layers
+
+
 ## 🌐 Web Interface
 
 Experience Biomni through our no-code web interface at **[biomni.stanford.edu](https://biomni.stanford.edu)**.

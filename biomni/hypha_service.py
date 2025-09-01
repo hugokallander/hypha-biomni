@@ -35,12 +35,17 @@ Usage example:
 
 from __future__ import annotations
 
+import argparse
+import asyncio
 import importlib
 import inspect
 import logging
+import os
 import traceback
 from typing import TYPE_CHECKING, Any
 
+from dotenv import load_dotenv
+from hypha_rpc import connect_to_server
 from hypha_rpc.utils.schema import schema_function
 
 from biomni.tool.tool_registry import ToolRegistry
@@ -50,6 +55,10 @@ if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+DEFAULT_REMOTE_URL = "https://hypha.aicell.io"
+DEFAULT_SERVICE_ID = "biomni-tools"
 
 # ---------------------------------------------------------------------------
 # Internal helpers
@@ -78,16 +87,15 @@ def _resolve_tool_callable(tool_name: str) -> Callable[..., Any]:
                 except (
                     Exception
                 ) as e:  # Capture import errors (missing third-party deps)
-                    raise ImportError(
-                        f"Failed importing module {impl_module_name} for {tool_name}: {e}",
-                    ) from e
+                    error_msg = f"Failed importing module {impl_module_name} for {tool_name}: {e}"
+                    raise ImportError(error_msg) from e
                 fn = getattr(impl_module, tool_name, None)
                 if fn is None:
-                    raise AttributeError(
-                        f"Function {tool_name} not found in {impl_module_name}",
-                    )
+                    error_msg = f"Function {tool_name} not found in {impl_module_name}"
+                    raise AttributeError(error_msg)
                 return fn
-    raise ValueError(f"Could not locate implementation for tool '{tool_name}'")
+    error_msg = f"Tool '{tool_name}' not found in any registered module."
+    raise ValueError(error_msg)
 
 
 # ---------------------------------------------------------------------------
@@ -122,21 +130,28 @@ def build_schema_functions() -> dict[str, Callable[..., Awaitable[dict[str, Any]
             err_msg = f"unavailable: {exc}"
             logger.warning("Skipping tool '%s' due to import error: %s", tool_name, exc)
 
-            async def _unavailable(_err=err_msg, _tool=tool_name, **_kw):  # type: ignore[no-untyped-def]
-                return {"tool": _tool, "ok": False, "error": _err}
+            async def _unavailable(
+                err: str = err_msg,
+                tool: str = tool_name,
+                **kw: Any,
+            ) -> dict[str, Any]:
+                return {"tool": tool, "ok": False, "error": err}
 
-            name2func[tool_name] = schema_function(_unavailable)  # type: ignore
+            name2func[tool_name] = schema_function(_unavailable)
             continue
 
         required = spec.get("required_parameters", [])
         optional = spec.get("optional_parameters", [])
 
-        async def _wrapper(_impl=impl, _tool=tool_name, **kwargs):  # type: ignore[no-untyped-def]
+        async def _wrapper(
+            _impl: Callable[..., Any] = impl,
+            _tool: str = tool_name,
+            **kwargs: Any,
+        ) -> dict[str, Any]:
             try:
                 impl_params = inspect.signature(_impl).parameters
                 call_kwargs = {k: v for k, v in kwargs.items() if k in impl_params}
                 result = _impl(**call_kwargs)
-                return {"tool": _tool, "ok": True, "result": result}
             except Exception as err:  # pragma: no cover
                 logger.debug(
                     "Exception in tool '%s': %s\n%s",
@@ -145,10 +160,11 @@ def build_schema_functions() -> dict[str, Callable[..., Awaitable[dict[str, Any]
                     traceback.format_exc(),
                 )
                 return {"tool": _tool, "ok": False, "error": str(err)}
+            else:
+                return {"tool": _tool, "ok": True, "result": result}
 
-        arg_defs = []
-        for p in required:
-            arg_defs.append(p["name"])
+        arg_defs = [p["name"] for p in required]
+
         for p in optional:
             default_repr = repr(p.get("default", None))
             arg_defs.append(f"{p['name']}={default_repr}")
@@ -162,7 +178,7 @@ def build_schema_functions() -> dict[str, Callable[..., Awaitable[dict[str, Any]
         gf = namespace["generated_func"]
         gf.__name__ = tool_name
         gf.__doc__ = spec.get("description", tool_name)
-        schema_func = schema_function(gf)  # type: ignore
+        schema_func = schema_function(gf)
         name2func[tool_name] = schema_func
 
     return name2func
@@ -172,14 +188,27 @@ def build_schema_functions() -> dict[str, Callable[..., Awaitable[dict[str, Any]
 # Registration helper
 # ---------------------------------------------------------------------------
 async def register_all_tools(
-    server: Any,
-    service_id: str = "biomni-tools",
+    *,
+    workspace: str,
+    client_id: str | None = None,
+    service_id: str = DEFAULT_SERVICE_ID,
+    server_url: str = DEFAULT_REMOTE_URL,
     service_name: str = "Biomni Tool Service",
     functions: dict[str, Callable[..., Awaitable[dict[str, Any]]]] | None = None,
     visibility: str = "public",
     extra_config: dict[str, Any] | None = None,
 ) -> None:
     """Register all tool schema functions as one Hypha service."""
+    load_dotenv()
+
+    server = await connect_to_server(
+        {
+            "server_url": server_url,
+            "workspace": workspace,
+            "token": os.getenv("HYPHA_TOKEN"),
+        },
+    )
+
     if functions is None:
         functions = build_schema_functions()
 
@@ -191,6 +220,19 @@ async def register_all_tools(
     payload.update(functions)
 
     await server.register_service(payload)  # type: ignore[attr-defined]
+
+    server_workspace = server.config.workspace
+
+    log_msg = (
+        f"Service '{service_name}' registered with ID"
+        f" '{service_id}' in workspace '{server_workspace}'."
+    )
+    logger.info(log_msg)
+
+    log_msg2 = f"Access it at {server_url}/{server_workspace}/services/{service_id}"
+    logger.info(log_msg2)
+
+    await server.serve()
 
 
 # ---------------------------------------------------------------------------
@@ -212,3 +254,46 @@ def _cli_list() -> None:
 
 if __name__ == "__main__":  # pragma: no cover
     _cli_list()
+    parser = argparse.ArgumentParser(description="Aria tools launch commands.")
+
+    subparsers = parser.add_subparsers()
+
+    parser_remote = subparsers.add_parser("remote")
+    parser_remote.add_argument("--server-url", type=str, default=DEFAULT_REMOTE_URL)
+    parser_remote.add_argument(
+        "--service-id",
+        type=str,
+        default=DEFAULT_SERVICE_ID,
+    )
+    parser_remote.add_argument(
+        "--client-id",
+        type=str,
+        default=None,
+        help="Client ID for the remote connection",
+    )
+    parser_remote.add_argument(
+        "--workspace",
+        type=str,
+        default=None,
+        help="Workspace to register the service under",
+    )
+    parser_remote.set_defaults(func=register_all_tools)
+
+    args = parser.parse_args()
+
+    loop = asyncio.get_event_loop()
+
+    task = loop.create_task(
+        args.func(
+            workspace=args.workspace,
+            client_id=args.client_id,
+            service_id=args.service_id,
+            server_url=args.server_url,
+        ),
+    )
+
+    tasks = set()
+    tasks.add(task)
+    task.add_done_callback(tasks.discard)
+
+    loop.run_forever()

@@ -1,0 +1,54 @@
+name: biomni-extras
+channels:
+  - pytorch
+  - conda-forge
+  - bioconda
+  - defaults
+channel_priority: strict
+dependencies:
+  # Heavy / optional scientific & ML
+  - scanpy
+  - scvi-tools
+  - pybedtools
+  - viennarna
+  - cooler
+  - pykalman
+  - trackpy
+  - rdkit
+  - gseapy
+  - gget
+  - reportlab
+  - python-louvain
+  - torchvision
+  - torchaudio
+  - accelerate
+  - cpuonly
+  - pytorch
+  # Visualization / notebook stack
+  - jupyter
+  - notebook
+  # Move optional chemistry/ML to pip if lighter there
+  - pip:
+      - transformers
+      - sentencepiece
+      - langchain
+      - langgraph==0.3.18
+      - langchain-openai
+      - langchain-anthropic
+      - langchain-ollama
+      - langchain-community
+      - openai
+      - gradio
+      - beautifulsoup4
+      - lxml
+      - PyPDF2
+      - googlesearch-python
+      - arxiv
+      - harmonypy
+      - cobra
+      - cellpose
+      - fastremap
+      - DeepPurpose
+      - FlowCytometryTools
+      - tdc
+      - pymed

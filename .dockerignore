@@ -20,6 +20,8 @@ data/
 biomni_env/*.sh
 biomni_env/*.yml
 !biomni_env/environment.yml
+!biomni_env/environment.base.yml
+!biomni_env/environment.extras.yml
 biomni_env/README.md
 docs/_build/
 benchmark/

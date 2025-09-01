@@ -2,10 +2,13 @@ name: biomni
 channels:
   - conda-forge
   - bioconda
+  - pytorch
   - defaults
 dependencies:
   - python=3.11
   - pip
+  # Force CPU-only variants to reduce image size and disk usage (avoid large CUDA libs)
+  - cpuonly # from pytorch channel; micromamba/conda will map
   # Core numeric & utils
   - numpy=2.1
   - pandas
@@ -25,7 +28,6 @@ dependencies:
   - biopython
   - pybedtools
   - viennarna
-  - libsbml
   - msprime
   - cooler
   - pyliftover
@@ -33,7 +35,6 @@ dependencies:
   - trackpy
   - scanpy
   - scvi-tools
-  - cobra
   - simpleitk
   - nibabel
   - opencv
@@ -42,7 +43,6 @@ dependencies:
   - gget
   - reportlab
   - python-louvain
-  - cellpose
   - muscle
   # ML / imaging
   - pytorch
@@ -78,6 +78,9 @@ dependencies:
       - googlesearch-python
       - arxiv
       - harmonypy
+      - cobra # moved to pip to avoid libSBML solve on osx-arm64
+      - cellpose
+      - fastremap
       - DeepPurpose
       - FlowCytometryTools
       - tdc
