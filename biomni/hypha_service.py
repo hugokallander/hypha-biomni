@@ -42,15 +42,21 @@ import inspect
 import logging
 import os
 import sys
-import traceback
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from dotenv import load_dotenv
 from hypha_rpc import connect_to_server
 from hypha_rpc.utils.schema import schema_function
 
-from biomni.tool.tool_registry import ToolRegistry
-from biomni.utils import read_module2api
+_THIS_DIR = Path(__file__).resolve().parent
+_PROJECT_ROOT = _THIS_DIR.parent
+if str(_PROJECT_ROOT) not in sys.path:  # pragma: no cover
+    sys.path.insert(0, str(_PROJECT_ROOT))
+
+from biomni import mirdb_tools  # noqa: E402
+from biomni.tool.tool_registry import ToolRegistry  # noqa: E402  (after sys.path fix)
+from biomni.utils import read_module2api  # noqa: E402
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Iterator
@@ -222,19 +228,9 @@ def _create_async_function(  # noqa: PLR0913 accepts several parts for clarity
         _tool: str = tool_name,
         **kwargs: object,
     ) -> dict[str, Any]:
-        try:
-            impl_params = inspect.signature(_impl).parameters
-            call_kwargs = {k: v for k, v in kwargs.items() if k in impl_params}
-            result = _impl(**call_kwargs)
-        except Exception as err:  # noqa: BLE001 pragma: no cover
-            logger.debug(
-                "Exception in tool '%s': %s\n%s",
-                _tool,
-                err,
-                traceback.format_exc(),
-            )
-            return {"tool": _tool, "ok": False, "error": str(err)}
-        return {"tool": _tool, "ok": True, "result": result}
+        impl_params = inspect.signature(_impl).parameters
+        call_kwargs = {k: v for k, v in kwargs.items() if k in impl_params}
+        return _impl(**call_kwargs)
 
     arg_parts = [p["name"] for p in required]
     for p in optional:
@@ -260,11 +256,7 @@ def _create_async_function(  # noqa: PLR0913 accepts several parts for clarity
         gf,
         name=tool_name,
         description=func_description,
-        parameters={
-            "name": tool_name,
-            "description": func_description,
-            "parameters": param_schema,
-        },
+        parameters=param_schema,
     )
 
 
@@ -272,14 +264,15 @@ def _unavailable_function(
     tool_name: str,
     error: str,
 ) -> Callable[..., Awaitable[dict[str, Any]]]:
-    async def _unavailable(
-        err: str = error,
-        tool: str = tool_name,
-        **_: object,
-    ) -> dict[str, Any]:
-        return {"tool": tool, "ok": False, "error": err}
+    async def _unavailable() -> dict[str, Any]:  # no user parameters
+        raise FileNotFoundError(error)
 
-    return schema_function(_unavailable)
+    return schema_function(
+        _unavailable,
+        name=tool_name,
+        description=f"Unavailable tool placeholder for {tool_name} (import error).",
+        parameters={"type": "object", "properties": {}, "required": []},
+    )
 
 
 def build_schema_functions() -> dict[str, Callable[..., Awaitable[dict[str, Any]]]]:
@@ -351,6 +344,12 @@ async def register_all_tools(  # noqa: PLR0913 public API needs explicit args
 
     if functions is None:
         functions = build_schema_functions()
+
+    # Merge in miRDB custom functions (outside dynamic tool registry)
+    try:  # pragma: no cover - defensive path
+        functions.update(mirdb_tools.get_mirdb_schema_functions())
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Failed loading miRDB functions: %s", exc)
 
     config = {"visibility": visibility}
     if extra_config:
