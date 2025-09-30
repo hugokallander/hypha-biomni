@@ -14,13 +14,13 @@ Principles:
 from __future__ import annotations
 
 from collections import Counter
-from functools import lru_cache
-from pathlib import Path
 from typing import Any
 
 import pandas as pd
 from hypha_rpc.utils.schema import schema_function
 from pydantic import Field
+
+from biomni.utils import open_dataset_file
 
 __all__ = [
     "get_all_mirnas",
@@ -33,27 +33,10 @@ __all__ = [
 ]
 
 
-class MiRDBNotFoundError(FileNotFoundError):
-    """Custom exception for miRDB-related errors."""
-
-    def __init__(self, dataset_file: str) -> None:
-        """Initialize with dataset file path."""
-        super().__init__(f"miRDB dataset file not found: {dataset_file}")
-
-
-def _dataset_path() -> Path:
-    """Return path to raw miRDB TSV file."""
-    return Path(__file__).resolve().parent.parent / "miRDB_v6.0_prediction_result.txt"
-
-
-@lru_cache(maxsize=1)
 def _load_dataset() -> pd.DataFrame:
     """Load & cache dataset into DataFrame with columns: mirna, transcript, score."""
-    path = _dataset_path()
-    if not path.exists():
-        raise MiRDBNotFoundError(str(path))
-    return pd.read_csv(
-        path,
+    return open_dataset_file(
+        "miRDB_v6.0_prediction_result.txt",
         sep="\t",
         header=None,
         names=["mirna", "transcript", "score"],

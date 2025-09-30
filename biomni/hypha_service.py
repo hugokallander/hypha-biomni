@@ -42,21 +42,15 @@ import inspect
 import logging
 import os
 import sys
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from dotenv import load_dotenv
 from hypha_rpc import connect_to_server
 from hypha_rpc.utils.schema import schema_function
 
-_THIS_DIR = Path(__file__).resolve().parent
-_PROJECT_ROOT = _THIS_DIR.parent
-if str(_PROJECT_ROOT) not in sys.path:  # pragma: no cover
-    sys.path.insert(0, str(_PROJECT_ROOT))
-
-from biomni import mirdb_tools  # noqa: E402
-from biomni.tool.tool_registry import ToolRegistry  # noqa: E402  (after sys.path fix)
-from biomni.utils import read_module2api  # noqa: E402
+from biomni import affinity_capture_rna_tools, mirdb_tools
+from biomni.tool.tool_registry import ToolRegistry
+from biomni.utils import DatasetTuple, download_files, read_module2api
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Iterator
@@ -331,6 +325,23 @@ async def register_all_tools(  # noqa: PLR0913 public API needs explicit args
     """Register all tool schema functions as one Hypha service."""
     load_dotenv()
 
+    datasets = [
+        DatasetTuple(
+            artifact_alias="affinity_capture-ms",
+            file_path="affinity_capture-ms.parquet",
+        ),
+        DatasetTuple(
+            artifact_alias="affinity_capture-rna",
+            file_path="affinity_capture-rna.parquet",
+        ),
+        DatasetTuple(
+            artifact_alias="mirdb",
+            file_path="miRDB_v6.0_results.parquet",
+        ),
+    ]
+
+    await download_files(datasets)
+
     server_config = {
         "server_url": server_url,
         "workspace": workspace,
@@ -350,6 +361,17 @@ async def register_all_tools(  # noqa: PLR0913 public API needs explicit args
         functions.update(mirdb_tools.get_mirdb_schema_functions())
     except Exception as exc:  # noqa: BLE001
         logger.warning("Failed loading miRDB functions: %s", exc)
+
+    # Merge in affinity capture RNA dataset functions
+    try:  # pragma: no cover - defensive path
+        functions.update(
+            affinity_capture_rna_tools.get_affinity_capture_rna_schema_functions(),
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            "Failed loading affinity capture RNA functions: %s",
+            exc,
+        )
 
     config = {"visibility": visibility}
     if extra_config:

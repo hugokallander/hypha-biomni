@@ -5,20 +5,78 @@ import json
 import os
 import pickle
 import subprocess
+import sys
 import tempfile
 import traceback
 import zipfile
-from typing import Any, ClassVar
+from asyncio.log import logger
+from pathlib import Path
+from typing import Any, ClassVar, NamedTuple
 from urllib.parse import urljoin
 
 import pandas as pd
 import requests
 import tqdm  # Add tqdm for progress bar
+from hypha_artifact import AsyncHyphaArtifact
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.messages.base import get_msg_title_repr
 from langchain_core.tools import StructuredTool
 from langchain_core.utils.interactive_env import is_interactive_env
 from pydantic import BaseModel, Field, ValidationError
+
+_THIS_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = _THIS_DIR.parent
+if str(PROJECT_ROOT) not in sys.path:  # pragma: no cover
+    sys.path.insert(0, str(PROJECT_ROOT))
+BASE_DIR = os.getenv("BIOMNI_DATA_DIR", str(PROJECT_ROOT / "biomni_data"))
+DATA_LAKE_DIR = Path(BASE_DIR) / "data_lake"
+
+
+class DatasetTuple(NamedTuple):
+    """Dataset artifact tuple."""
+
+    artifact_alias: str
+    file_path: str
+
+
+async def download_files(datasets: list[DatasetTuple]) -> None:
+    """Ensure expected data lake files are present (download if missing)."""
+    # Determine base directory for data lake (env override -> project root / biomni_data)
+    DATA_LAKE_DIR.mkdir(parents=True, exist_ok=True)
+    workspace = os.getenv("HYPHA_WORKSPACE")
+
+    for dataset in datasets:
+        local_path = DATA_LAKE_DIR / dataset.file_path
+
+        if local_path.exists():
+            logger.info("File already exists: %s", local_path)
+            continue
+
+        artifact_id = f"{workspace}/{dataset.artifact_alias}"
+        artifact = AsyncHyphaArtifact(
+            artifact_id=artifact_id,
+            workspace=workspace,
+            server_url="https://hypha.aicell.io",
+        )
+
+        await artifact.get(dataset.file_path, str(local_path))
+
+
+def open_dataset_file(
+    dataset_file: str,
+    **dataframe_options: object | None,
+) -> pd.DataFrame:
+    """Open a dataset file as a DataFrame."""
+    file_path = DATA_LAKE_DIR / dataset_file
+    if not file_path.exists():
+        error_msg = f"Dataset file not found: {file_path}"
+        logger.error(error_msg)
+        raise FileNotFoundError(error_msg)
+
+    if dataset_file.endswith((".csv", ".txt", ".tsv")):
+        return pd.read_csv(file_path, **dataframe_options)  # type: ignore[reportCallIssue]
+
+    return pd.read_parquet(file_path, **dataframe_options)  # type: ignore[reportCallIssue]
 
 
 # Add these new functions for running R code and CLI commands
@@ -39,7 +97,12 @@ def run_r_code(code: str) -> str:
             temp_file = f.name
 
         # Run the R code using Rscript
-        result = subprocess.run(["Rscript", temp_file], capture_output=True, text=True, check=False)
+        result = subprocess.run(
+            ["Rscript", temp_file],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
 
         # Clean up the temporary file
         os.unlink(temp_file)
@@ -47,10 +110,9 @@ def run_r_code(code: str) -> str:
         # Return the output
         if result.returncode != 0:
             return f"Error running R code:\n{result.stderr}"
-        else:
-            return result.stdout
+        return result.stdout
     except Exception as e:
-        return f"Error running R code: {str(e)}"
+        return f"Error running R code: {e!s}"
 
 
 def run_bash_script(script: str) -> str:
@@ -137,11 +199,10 @@ def run_bash_script(script: str) -> str:
             traceback.print_stack()
             print(result)
             return f"Error running Bash script (exit code {result.returncode}):\n{result.stderr}"
-        else:
-            return result.stdout
+        return result.stdout
     except Exception as e:
         traceback.print_exc()
-        return f"Error running Bash script: {str(e)}"
+        return f"Error running Bash script: {e!s}"
 
 
 # Keep the run_cli_command for backward compatibility
@@ -174,10 +235,9 @@ def run_cli_command(command: str) -> str:
         # Return the output
         if result.returncode != 0:
             return f"Error running command '{command}':\n{result.stderr}"
-        else:
-            return result.stdout
+        return result.stdout
     except Exception as e:
-        return f"Error running command '{command}': {str(e)}"
+        return f"Error running command '{command}': {e!s}"
 
 
 def run_with_timeout(func, args=None, kwargs=None, timeout=600):
@@ -205,7 +265,10 @@ def run_with_timeout(func, args=None, kwargs=None, timeout=600):
             result_queue.put(("error", str(e)))
 
     # Start a separate thread
-    thread = threading.Thread(target=thread_func, args=(func, args, kwargs, result_queue))
+    thread = threading.Thread(
+        target=thread_func,
+        args=(func, args, kwargs, result_queue),
+    )
     thread.daemon = True  # Set as daemon so it will be killed when main thread exits
     thread.start()
 
@@ -225,10 +288,16 @@ def run_with_timeout(func, args=None, kwargs=None, timeout=600):
             if thread_id:
                 # This is a bit dangerous and not 100% reliable
                 # It attempts to raise a SystemExit exception in the thread
-                res = ctypes.pythonapi.PyThreadState_SetAsyncExc(ctypes.c_long(thread_id), ctypes.py_object(SystemExit))
+                res = ctypes.pythonapi.PyThreadState_SetAsyncExc(
+                    ctypes.c_long(thread_id),
+                    ctypes.py_object(SystemExit),
+                )
                 if res > 1:
                     # Oops, we raised too many exceptions
-                    ctypes.pythonapi.PyThreadState_SetAsyncExc(ctypes.c_long(thread_id), None)
+                    ctypes.pythonapi.PyThreadState_SetAsyncExc(
+                        ctypes.c_long(thread_id),
+                        None,
+                    )
         except Exception as e:
             print(f"Error trying to terminate thread: {e}")
 
@@ -302,15 +371,22 @@ def get_all_functions_from_file(file_path):
 
     # Walk through the AST nodes
     for node in tree.body:  # Only consider top-level nodes in the body
-        if isinstance(node, ast.FunctionDef):  # Check if the node is a function definition
+        if isinstance(
+            node,
+            ast.FunctionDef,
+        ):  # Check if the node is a function definition
             # Skip if function name starts with underscore
             if node.name.startswith("_"):
                 continue
 
             start_line = node.lineno - 1  # Get the starting line of the function
-            end_line = node.end_lineno  # Get the ending line of the function (only available in Python 3.8+)
+            end_line = (
+                node.end_lineno
+            )  # Get the ending line of the function (only available in Python 3.8+)
             func_code = file_content.splitlines()[start_line:end_line]
-            functions.append("\n".join(func_code))  # Join lines of the function and add to the list
+            functions.append(
+                "\n".join(func_code),
+            )  # Join lines of the function and add to the list
 
     return functions
 
@@ -328,7 +404,9 @@ def write_python_code(request: str):
     ```python
     ....
     ```"""
-    prompt = ChatPromptTemplate.from_messages([("system", template), ("human", "{input}")])
+    prompt = ChatPromptTemplate.from_messages(
+        [("system", template), ("human", "{input}")],
+    )
 
     def _sanitize_output(text: str):
         _, after = text.split("```python")
@@ -345,12 +423,15 @@ def execute_graphql_query(
 ) -> dict:
     """Executes a GraphQL query with variables and returns the data as a dictionary."""
     headers = {"Content-Type": "application/json"}
-    response = requests.post(api_address, json={"query": query, "variables": variables}, headers=headers)
+    response = requests.post(
+        api_address,
+        json={"query": query, "variables": variables},
+        headers=headers,
+    )
     if response.status_code == 200:
         return response.json()
-    else:
-        print(response.text)
-        response.raise_for_status()
+    print(response.text)
+    response.raise_for_status()
 
 
 def get_tool_decorated_functions(relative_path):
@@ -372,14 +453,10 @@ def get_tool_decorated_functions(relative_path):
     for node in ast.walk(tree):
         if isinstance(node, ast.FunctionDef):
             for decorator in node.decorator_list:
-                if (
-                    isinstance(decorator, ast.Name)
-                    and decorator.id == "tool"
-                    or (
-                        isinstance(decorator, ast.Call)
-                        and isinstance(decorator.func, ast.Name)
-                        and decorator.func.id == "tool"
-                    )
+                if (isinstance(decorator, ast.Name) and decorator.id == "tool") or (
+                    isinstance(decorator, ast.Call)
+                    and isinstance(decorator.func, ast.Name)
+                    and decorator.func.id == "tool"
                 ):
                     tool_function_names.append(node.name)
 
@@ -441,7 +518,10 @@ def pretty_print(message, printout=True):
     if isinstance(message, tuple):
         title = message
     elif isinstance(message.content, list):
-        title = get_msg_title_repr(message.type.title().upper() + " Message", bold=is_interactive_env())
+        title = get_msg_title_repr(
+            message.type.title().upper() + " Message",
+            bold=is_interactive_env(),
+        )
         if message.name is not None:
             title += f"\nName: {message.name}"
 
@@ -454,7 +534,10 @@ def pretty_print(message, printout=True):
         if printout:
             print(f"{title}")
     else:
-        title = get_msg_title_repr(message.type.title() + " Message", bold=is_interactive_env())
+        title = get_msg_title_repr(
+            message.type.title() + " Message",
+            bold=is_interactive_env(),
+        )
         if message.name is not None:
             title += f"\nName: {message.name}"
         title += f"\n\n{message.content}"
@@ -483,7 +566,9 @@ class CustomBaseModel(BaseModel):
 
             error_msg = "Required Parameters:\n"
             for param in cls.api_schema["required_parameters"]:
-                error_msg += f"- {param['name']} ({param['type']}): {param['description']}\n"
+                error_msg += (
+                    f"- {param['name']} ({param['type']}): {param['description']}\n"
+                )
 
             error_msg += "\nErrors:\n"
             for err in e.errors():
@@ -497,7 +582,9 @@ class CustomBaseModel(BaseModel):
                 for key, value in obj.items():
                     error_msg += f"- {key}: {value}\n"
 
-                missing_params = {param["name"] for param in cls.api_schema["required_parameters"]} - set(obj.keys())
+                missing_params = {
+                    param["name"] for param in cls.api_schema["required_parameters"]
+                } - set(obj.keys())
                 if missing_params:
                     error_msg += "\nMissing Parameters:\n"
                     for param in missing_params:
@@ -514,7 +601,7 @@ class CustomBaseModel(BaseModel):
                         "ctx": {
                             "error": error_msg,
                         },
-                    }
+                    },
                 ],
             ) from None
 
@@ -531,7 +618,9 @@ def safe_execute_decorator(func):
 
 def api_schema_to_langchain_tool(api_schema, mode="generated_tool", module_name=None):
     if mode == "generated_tool":
-        module = importlib.import_module("biomni.tool.generated_tool." + api_schema["tool_name"] + ".api")
+        module = importlib.import_module(
+            "biomni.tool.generated_tool." + api_schema["tool_name"] + ".api",
+        )
     elif mode == "custom_tool":
         module = importlib.import_module(module_name)
 
@@ -567,10 +656,17 @@ def api_schema_to_langchain_tool(api_schema, mode="generated_tool", module_name=
                 # Default to Any for unknown types
                 annotations[param["name"]] = Any
 
-    fields = {param["name"]: Field(description=param["description"]) for param in api_schema["required_parameters"]}
+    fields = {
+        param["name"]: Field(description=param["description"])
+        for param in api_schema["required_parameters"]
+    }
 
     # Create the ApiInput class dynamically
-    ApiInput = type("Input", (CustomBaseModel,), {"__annotations__": annotations, **fields})
+    ApiInput = type(
+        "Input",
+        (CustomBaseModel,),
+        {"__annotations__": annotations, **fields},
+    )
     # Set the api_schema
     ApiInput.set_api_schema(api_schema)
 
@@ -589,19 +685,20 @@ def api_schema_to_langchain_tool(api_schema, mode="generated_tool", module_name=
 class ID(enum.Enum):
     ENTREZ = "Entrez"
     ENSEMBL = "Ensembl without version"  # e.g. ENSG00000123374
-    ENSEMBL_W_VERSION = "Ensembl with version"  # e.g. ENSG00000123374.10 (needed for GTEx)
+    ENSEMBL_W_VERSION = (
+        "Ensembl with version"  # e.g. ENSG00000123374.10 (needed for GTEx)
+    )
 
 
 def get_gene_id(gene_symbol: str, id_type: ID):
     """Get the ID for a gene symbol. If no match found, returns None."""
     if id_type == ID.ENTREZ:
         return _get_gene_id_entrez(gene_symbol)
-    elif id_type == ID.ENSEMBL:
+    if id_type == ID.ENSEMBL:
         return _get_gene_id_ensembl(gene_symbol)
-    elif id_type == ID.ENSEMBL_W_VERSION:
+    if id_type == ID.ENSEMBL_W_VERSION:
         return _get_gene_id_ensembl_with_version(gene_symbol)
-    else:
-        raise ValueError(f"ID type {id_type} not supported")
+    raise ValueError(f"ID type {id_type} not supported")
 
 
 def _get_gene_id_entrez(gene_symbol: str):
@@ -614,8 +711,7 @@ def _get_gene_id_entrez(gene_symbol: str):
 
     if len(response_json["hits"]) == 0:
         return None
-    else:
-        return response_json["hits"][0]["entrezgene"]
+    return response_json["hits"][0]["entrezgene"]
 
 
 def _get_gene_id_ensembl(gene_symbol):
@@ -628,14 +724,12 @@ def _get_gene_id_ensembl(gene_symbol):
 
     if len(response_json["hits"]) == 0:
         return None
-    else:
-        ensembl = response_json["hits"][0]["ensembl"]
-        if isinstance(ensembl, list):
-            return ensembl[0][
-                "gene"
-            ]  # Sometimes returns a list, for example RNH1 (first elem is on chr11, second is on scaffold_hschr11)
-        else:
-            return ensembl["gene"]
+    ensembl = response_json["hits"][0]["ensembl"]
+    if isinstance(ensembl, list):
+        return ensembl[0][
+            "gene"
+        ]  # Sometimes returns a list, for example RNH1 (first elem is on chr11, second is on scaffold_hschr11)
+    return ensembl["gene"]
 
 
 def _get_gene_id_ensembl_with_version(gene_symbol):
@@ -648,8 +742,7 @@ def _get_gene_id_ensembl_with_version(gene_symbol):
 
     if len(response_json["data"]) == 0:
         return None
-    else:
-        return response_json["data"][0]["gencodeId"]
+    return response_json["data"][0]["gencodeId"]
 
 
 def save_pkl(f, filename):
@@ -684,7 +777,11 @@ class PromptLogger(BaseCallbackHandler):
 
 class NodeLogger(BaseCallbackHandler):
     def on_llm_end(self, response, **kwargs):  # response of type LLMResult
-        for generations in response.generations:  # response.generations of type List[List[Generations]] becuase "each input could have multiple candidate generations"
+        for (
+            generations
+        ) in (
+            response.generations
+        ):  # response.generations of type List[List[Generations]] becuase "each input could have multiple candidate generations"
             for generation in generations:
                 generated_text = generation.message.content
                 # token_usage = generation.message.response_metadata["token_usage"]
@@ -743,10 +840,16 @@ def langchain_to_gradio_message(message):
                     gradio_message["metadata"]["title"] = "🛠️ Writing code..."
                     # input = "```python {code_block}```\n".format(code_block=item['input']["command"])
                     gradio_message["metadata"]["log"] = "Executing Code block..."
-                    gradio_message["content"] = f"##### Code: \n ```python \n {item['input']['command']} \n``` \n"
+                    gradio_message["content"] = (
+                        f"##### Code: \n ```python \n {item['input']['command']} \n``` \n"
+                    )
                 else:
-                    gradio_message["metadata"]["title"] = f"🛠️ Used tool ```{item['name']}```"
-                    to_print = ";".join([i + ": " + str(j) for i, j in item["input"].items()])
+                    gradio_message["metadata"][
+                        "title"
+                    ] = f"🛠️ Used tool ```{item['name']}```"
+                    to_print = ";".join(
+                        [i + ": " + str(j) for i, j in item["input"].items()],
+                    )
                     gradio_message["metadata"]["log"] = f"🔍 Input -- {to_print}\n"
                 gradio_message["metadata"]["status"] = "pending"
                 gradio_messages.append(gradio_message)
@@ -812,7 +915,9 @@ def textify_api_dict(api_dict):
         lines.append("=" * (len("Import file: ") + len(category)))
         for method in methods:
             lines.append(f"Method: {method.get('name', 'N/A')}")
-            lines.append(f"  Description: {method.get('description', 'No description provided.')}")
+            lines.append(
+                f"  Description: {method.get('description', 'No description provided.')}",
+            )
 
             # Process required parameters
             req_params = method.get("required_parameters", [])
@@ -823,7 +928,9 @@ def textify_api_dict(api_dict):
                     param_type = param.get("type", "N/A")
                     param_desc = param.get("description", "No description")
                     param_default = param.get("default", "None")
-                    lines.append(f"    - {param_name} ({param_type}): {param_desc} [Default: {param_default}]")
+                    lines.append(
+                        f"    - {param_name} ({param_type}): {param_desc} [Default: {param_default}]",
+                    )
 
             # Process optional parameters
             opt_params = method.get("optional_parameters", [])
@@ -834,7 +941,9 @@ def textify_api_dict(api_dict):
                     param_type = param.get("type", "N/A")
                     param_desc = param.get("description", "No description")
                     param_default = param.get("default", "None")
-                    lines.append(f"    - {param_name} ({param_type}): {param_desc} [Default: {param_default}]")
+                    lines.append(
+                        f"    - {param_name} ({param_type}): {param_desc} [Default: {param_default}]",
+                    )
 
             lines.append("")  # Empty line between methods
         lines.append("")  # Extra empty line after each category
@@ -915,7 +1024,10 @@ def download_and_unzip(url: str, dest_dir: str) -> str:
 
 
 def check_and_download_s3_files(
-    s3_bucket_url: str, local_data_lake_path: str, expected_files: list[str], folder: str = "data_lake"
+    s3_bucket_url: str,
+    local_data_lake_path: str,
+    expected_files: list[str],
+    folder: str = "data_lake",
 ) -> dict[str, bool]:
     """Check for missing files in the local data lake and download them from S3 bucket.
 
@@ -927,8 +1039,8 @@ def check_and_download_s3_files(
 
     Returns:
         Dictionary mapping file names to download success status
-    """
 
+    """
     os.makedirs(local_data_lake_path, exist_ok=True)
     download_results = {}
 
@@ -942,7 +1054,13 @@ def check_and_download_s3_files(
 
             with open(file_path, "wb") as f:
                 if total_size > 0:
-                    with tqdm.tqdm(total=total_size, unit="B", unit_scale=True, desc=desc, ncols=80) as pbar:
+                    with tqdm.tqdm(
+                        total=total_size,
+                        unit="B",
+                        unit_scale=True,
+                        desc=desc,
+                        ncols=80,
+                    ) as pbar:
                         for chunk in response.iter_content(chunk_size=8192):
                             if chunk:
                                 f.write(chunk)
