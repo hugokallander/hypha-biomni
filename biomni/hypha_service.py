@@ -323,7 +323,7 @@ async def register_all_tools(  # noqa: PLR0913 public API needs explicit args
     extra_config: dict[str, Any] | None = None,
 ) -> None:
     """Register all tool schema functions as one Hypha service."""
-    load_dotenv()
+    load_dotenv(override=True)
 
     datasets = [
         DatasetTuple(
