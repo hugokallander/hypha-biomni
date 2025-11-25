@@ -15,14 +15,22 @@ jobs:
       matrix:
         include:
           - name: base
-            install_extras: '0'
-            gpu: '0'
-            suffix: ''
+            install_extras: "0"
+            gpu: "0"
+            suffix: ""
           - name: extras
-            install_extras: '1'
-            gpu: '0'
-            suffix: '-extras'
+            install_extras: "1"
+            gpu: "0"
+            suffix: "-extras"
     steps:
+      - name: Free Disk Space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo docker system prune -a -f
+
       - name: Checkout repository
         uses: actions/checkout@v4.1.0
         with:
