@@ -33,7 +33,8 @@ dependencies:
   # Jupyter kernel minimal (optional to remove in production)
   - ipykernel
   - pip:
-      - hypha-rpc==0.20.78
+      - hypha-rpc==0.20.83
+      - hypha-artifact==0.2.1
       - anyio==4.10.0
       - python-dotenv
       - mcp
