@@ -28,7 +28,7 @@ _THIS_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = _THIS_DIR.parent
 if str(PROJECT_ROOT) not in sys.path:  # pragma: no cover
     sys.path.insert(0, str(PROJECT_ROOT))
-BASE_DIR = os.getenv("BIOMNI_DATA_DIR", str(PROJECT_ROOT / "biomni_data"))
+BASE_DIR = os.getenv("BIOMNI_DATA_PATH", str(PROJECT_ROOT / "biomni_data"))
 DATA_LAKE_DIR = Path(BASE_DIR) / "data_lake"
 
 
