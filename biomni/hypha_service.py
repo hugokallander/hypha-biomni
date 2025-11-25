@@ -446,8 +446,6 @@ if __name__ == "__main__":  # pragma: no cover
 
     args = parser.parse_args()
 
-    loop = asyncio.get_event_loop()
-
     if getattr(args, "func", None) == "_dump_schema":
         # Synchronous path: just dump schema and exit
         all_funcs = build_schema_functions()
@@ -465,21 +463,15 @@ if __name__ == "__main__":  # pragma: no cover
         print(_json.dumps(schema, indent=2))  # noqa: T201 (intentional CLI output)
         sys.exit(0)
 
-    try:
-        task = loop.create_task(
-            args.func(
-                workspace=args.workspace,
-                client_id=args.client_id,
-                service_id=args.service_id,
-                server_url=args.server_url,
-            ),
-        )
-    except AttributeError:
+    if not hasattr(args, "func"):
         logger.warning("No subcommand provided; append 'remote' or 'schema'.")
         sys.exit(1)
 
-    tasks = set()
-    tasks.add(task)
-    task.add_done_callback(tasks.discard)
-
-    loop.run_forever()
+    asyncio.run(
+        args.func(
+            workspace=args.workspace,
+            client_id=args.client_id,
+            service_id=args.service_id,
+            server_url=args.server_url,
+        ),
+    )
