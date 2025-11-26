@@ -1,9 +1,10 @@
 """miRDB dataset utilities exposed as Hypha schema functions.
 
-Observed columns (no header) in `miRDB_v6.0_prediction_result.txt`:
-1. miRNA ID (e.g. hsa-miR-21-5p, mmu-miR-1a-3p, cfa-miR-1185)
-2. Target transcript accession (RefSeq NM_/XM_ etc.)
-3. Prediction score (float; higher implies stronger confidence)
+Observed columns in `miRDB_v6.0_results.parquet`:
+1. miRNA (e.g. hsa-miR-21-5p, mmu-miR-1a-3p, cfa-miR-1185)
+2. target_accession (RefSeq NM_/XM_ etc.)
+3. score (float; higher implies stronger confidence)
+4. target_symbol (Gene symbol)
 
 Principles:
 1. Cached load (first call only hits disk).
@@ -34,16 +35,9 @@ __all__ = [
 
 
 def _load_dataset() -> pd.DataFrame:
-    """Load & cache dataset into DataFrame with columns: mirna, transcript, score."""
-    return open_dataset_file(
-        "miRDB_v6.0_prediction_result.txt",
-        sep="\t",
-        header=None,
-        names=["mirna", "transcript", "score"],
-        dtype={0: str, 1: str, 2: float},
-        engine="c",
-    ).dropna(
-        subset=["mirna", "transcript", "score"],
+    """Load & cache dataset into DataFrame with columns: miRNA, target_accession, score."""
+    return open_dataset_file("miRDB_v6.0_results.parquet").dropna(
+        subset=["miRNA", "target_accession", "score"],
     )
 
 
@@ -57,7 +51,7 @@ def _filter_species(df: pd.DataFrame, species: str | None) -> pd.DataFrame:
     if not species:
         return df
     species = species.lower()
-    return df[df["mirna"].str.lower().str.startswith(species + "-")]
+    return df[df["miRNA"].str.lower().str.startswith(species + "-")]
 
 
 @schema_function
@@ -65,7 +59,7 @@ async def list_mirdb_species() -> dict[str, object]:
     """List distinct species code prefixes from miRNA IDs."""
     try:
         df = _load_dataset()
-        species = sorted({_species_code(m) for m in df["mirna"].unique()})
+        species = sorted({_species_code(m) for m in df["miRNA"].unique()})
         return {"species_codes": species, "count": len(species)}
     except (FileNotFoundError, KeyError) as exc:
         return {"error": str(exc)}
@@ -85,7 +79,7 @@ async def get_all_mirnas(
     """Return unique miRNA IDs (optionally limited / species-filtered)."""
     try:
         df = _filter_species(_load_dataset(), species)
-        unique = sorted(df["mirna"].unique())
+        unique = sorted(df["miRNA"].unique())
         total = len(unique)
         if limit is not None:
             unique = unique[: max(0, limit)]
@@ -116,7 +110,7 @@ async def get_targets_for_mirna(
     """Return predicted target transcripts (with scores) for a miRNA."""
     try:
         df = _load_dataset()
-        sub = df[df["mirna"].str.lower() == mirna_id.lower()]
+        sub = df[df["miRNA"].str.lower() == mirna_id.lower()]
         if min_score is not None:
             sub = sub[sub["score"] >= float(min_score)]
         sub = sub.sort_values("score", ascending=False)
@@ -124,7 +118,7 @@ async def get_targets_for_mirna(
         if limit is not None:
             sub = sub.head(max(0, limit))
         records = [
-            {"transcript": r.transcript, "score": float(r.score)}
+            {"transcript": r.target_accession, "score": float(r.score)}
             for r in sub.itertuples(index=False)
         ]
         return {
@@ -155,17 +149,17 @@ async def get_top_mirnas_for_target(
     """Rank miRNAs predicted to target a transcript (optionally species-filtered)."""
     try:
         df = _load_dataset()
-        sub = df[df["transcript"].str.lower() == transcript_id.lower()]
+        sub = df[df["target_accession"].str.lower() == transcript_id.lower()]
         if species:
             species_l = species.lower()
-            sub = sub[sub["mirna"].str.lower().str.startswith(species_l + "-")]
+            sub = sub[sub["miRNA"].str.lower().str.startswith(species_l + "-")]
         else:
             species_l = None
         sub = sub.sort_values("score", ascending=False)
         total = len(sub)
         sub = sub.head(max(0, top_k))
         records = [
-            {"mirna": r.mirna, "score": float(r.score)}
+            {"mirna": r.miRNA, "score": float(r.score)}
             for r in sub.itertuples(index=False)
         ]
         return {
@@ -197,13 +191,17 @@ async def search_targets_by_gene_prefix(
     try:
         df = _filter_species(_load_dataset(), species)
         prefix_l = transcript_prefix.lower()
-        sub = df[df["transcript"].str.lower().str.startswith(prefix_l)]
+        sub = df[df["target_accession"].str.lower().str.startswith(prefix_l)]
         sub = sub.sort_values("score", ascending=False)
         total = len(sub)
         if limit is not None:
             sub = sub.head(max(0, limit))
         records = [
-            {"mirna": r.mirna, "transcript": r.transcript, "score": float(r.score)}
+            {
+                "mirna": r.miRNA,
+                "transcript": r.target_accession,
+                "score": float(r.score),
+            }
             for r in sub.itertuples(index=False)
         ]
         return {
@@ -230,15 +228,15 @@ async def summarize_mirdb(
         if df.empty:
             return {"species": species, "message": "No records found"}
         n_rows = len(df)
-        n_mirnas = df["mirna"].nunique()
-        n_transcripts = df["transcript"].nunique()
+        n_mirnas = df["miRNA"].nunique()
+        n_transcripts = df["target_accession"].nunique()
         score_stats = {
             "mean": float(df["score"].mean()),
             "median": float(df["score"].median()),
             "min": float(df["score"].min()),
             "max": float(df["score"].max()),
         }
-        counts = Counter(df["mirna"])
+        counts = Counter(df["miRNA"])
         top_mirnas = [
             {"mirna": m, "target_count": c} for m, c in counts.most_common(10)
         ]
