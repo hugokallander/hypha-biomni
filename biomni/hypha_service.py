@@ -49,6 +49,7 @@ from hypha_rpc import connect_to_server
 from hypha_rpc.utils.schema import schema_function
 
 from biomni import affinity_capture_rna_tools, mirdb_tools
+from biomni.config import default_config
 from biomni.tool.tool_registry import ToolRegistry
 from biomni.utils import DatasetTuple, download_files, read_module2api
 
@@ -442,9 +443,17 @@ if __name__ == "__main__":  # pragma: no cover
         default=None,
         help="Workspace to register the service under",
     )
+    parser_remote.add_argument(
+        "--model",
+        type=str,
+        default="gpt-5",
+        help="LLM model to set in the default config",
+    )
     parser_remote.set_defaults(func=register_all_tools)
 
     args = parser.parse_args()
+
+    default_config.llm = args.model
 
     if getattr(args, "func", None) == "_dump_schema":
         # Synchronous path: just dump schema and exit
