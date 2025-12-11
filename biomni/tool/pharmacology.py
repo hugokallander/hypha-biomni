@@ -6,9 +6,6 @@ import sys
 from datetime import datetime
 from difflib import get_close_matches
 
-import numpy as np
-import pandas as pd
-
 
 def run_diffdock_with_smiles(pdb_path, smiles_string, local_output_dir, gpu_device=0, use_gpu=True):
     try:
@@ -182,6 +179,8 @@ def run_autosite(pdb_file, output_dir, spacing=1.0):
 
 # Function to get TxGNN predictions and return a summarized string output
 def retrieve_topk_repurposing_drugs_from_disease_txgnn(disease_name, data_lake_path, k=5):
+    import numpy as np
+
     """This function computes TxGNN model predictions for drug repurposing. It takes in the paths to the data,
     the disease name, and returns a summary of the top K predicted drugs with their sigmoid-transformed scores.
 
@@ -412,6 +411,9 @@ def predict_binding_affinity_protein_1d_sequence(smiles_list, amino_acid_sequenc
 
 
 def analyze_accelerated_stability_of_pharmaceutical_formulations(formulations, storage_conditions, time_points):
+    import numpy as np
+    import pandas as pd
+
     """Analyzes the stability of pharmaceutical formulations under accelerated storage conditions.
 
     Parameters
@@ -680,6 +682,8 @@ def run_3d_chondrogenic_aggregate_assay(
 
 
 def grade_adverse_events_using_vcog_ctcae(clinical_data_file):
+    import pandas as pd
+
     """Grade and monitor adverse events in animal studies using the VCOG-CTCAE standard.
 
     Parameters
@@ -1071,6 +1075,8 @@ def grade_adverse_events_using_vcog_ctcae(clinical_data_file):
 
 
 def analyze_radiolabeled_antibody_biodistribution(time_points, tissue_data):
+    import numpy as np
+
     """Analyze biodistribution and pharmacokinetic profile of radiolabeled antibodies.
 
     Parameters

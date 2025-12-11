@@ -5,8 +5,6 @@ import time
 from typing import Any
 
 import requests
-from Bio.Blast import NCBIWWW, NCBIXML
-from Bio.Seq import Seq
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from biomni.llm import get_llm
@@ -2955,6 +2953,9 @@ def blast_sequence(sequence: str, database: str, program: str) -> dict[str, str 
         dict: A dictionary containing the title, e-value, identity percentage, and coverage percentage of the best alignment
 
     """
+    from Bio.Blast import NCBIWWW, NCBIXML
+    from Bio.Seq import Seq
+
     max_attempts = 1  # One initial attempt plus one retry
     attempts = 0
     max_runtime = 600  # 10 minutes in seconds

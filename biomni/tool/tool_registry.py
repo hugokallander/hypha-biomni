@@ -1,10 +1,10 @@
 import pickle
 
-import pandas as pd
-
 
 class ToolRegistry:
     def __init__(self, tools):
+        import pandas as pd
+
         self.tools = []
         self.next_id = 0
 

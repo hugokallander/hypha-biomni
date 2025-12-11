@@ -1,11 +1,5 @@
 import os
 
-import gget
-import gseapy
-import numpy as np
-import pandas as pd
-import scanpy as sc
-
 from biomni.llm import get_llm
 
 
@@ -54,6 +48,10 @@ def annotate_celltype_scRNA(
 
     from langchain_core.prompts import PromptTemplate
     # from langchain.chains import LLMChain
+
+    import numpy as np
+    import pandas as pd
+    import scanpy as sc
 
     steps = []
     steps.append(f"Loading AnnData from {data_dir}/{adata_filename}")
@@ -348,6 +346,7 @@ except Exception as e:
 def create_scvi_embeddings_scRNA(adata_filename, batch_key, label_key, data_dir):
     # Import scvi-tools correctly - the package name is still 'scvi' when installed
     try:
+        import scanpy as sc
         import scvi
     except ImportError:
         return "Please install scvi-tools: pip install scvi-tools"
@@ -388,6 +387,7 @@ def create_scvi_embeddings_scRNA(adata_filename, batch_key, label_key, data_dir)
 
 def create_harmony_embeddings_scRNA(adata_filename, batch_key, data_dir):
     # https://pypi.org/project/harmony-pytorch/
+    import scanpy as sc
     from harmony import harmonize
 
     steps = []
@@ -460,6 +460,8 @@ def get_uce_embeddings_scRNA(
 
 def map_to_ima_interpret_scRNA(adata_filename, data_dir, custom_args=None):
     """Map cell embeddings from the input dataset to the Integrated Megascale Atlas reference dataset using UCE embeddings."""
+    import numpy as np
+    import scanpy as sc
     from sklearn.neighbors import NearestNeighbors
 
     steps = []
@@ -532,6 +534,8 @@ def get_rna_seq_archs4(gene_name: str, K: int = 10) -> str:
     - str: The steps performed and the result.
 
     """
+    import gget
+
     steps_log = f"Starting RNA-seq data fetch for gene: {gene_name} with K: {K}\n"
 
     try:
@@ -562,6 +566,8 @@ def get_rna_seq_archs4(gene_name: str, K: int = 10) -> str:
 
 
 def get_gene_set_enrichment_analysis_supported_database_list() -> list:
+    import gseapy
+
     return gseapy.get_library_name()
 
 
@@ -596,6 +602,8 @@ def gene_set_enrichment_analysis(
     - str: The steps performed and the top K enrichment results.
 
     """
+    import gget
+
     steps_log = (
         f"Starting enrichment analysis for genes: {', '.join(genes)} using {database} database and top_k: {top_k}\n"
     )

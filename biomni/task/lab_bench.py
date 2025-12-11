@@ -1,17 +1,20 @@
-import numpy as np
-import pandas as pd
 from bioagentos.task.base_task import base_task
-
-np.random.seed(42)
 
 
 def shuffle(x):
+    import numpy as np
+
     np.random.shuffle(x)
     return x
 
 
 class lab_bench(base_task):
     def __init__(self, path="./data", dataset="DbQA"):
+        import numpy as np
+        import pandas as pd
+
+        np.random.seed(42)
+
         if dataset not in ["DbQA", "SeqQA"]:
             raise ValueError("dataset must be one of 'DbQA', 'SeqQA'")
 
@@ -62,6 +65,8 @@ We require this because we use automatic parsing.
         self.protocol = df.protocol.values if "protocol" in df.columns else None
 
     def get_example(self, index=None):
+        import numpy as np
+
         if index is None:
             index = np.random.randint(len(self.query))
 
@@ -86,6 +91,7 @@ We require this because we use automatic parsing.
 
     def evaluate(self, response):
         ## expected a list/array of symbols
+        import numpy as np
         from sklearn.metrics import accuracy_score
 
         ground_truth = self.answer

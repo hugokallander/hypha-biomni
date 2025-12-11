@@ -1,5 +1,6 @@
 import ast
 import enum
+import functools
 import importlib
 import json
 import os
@@ -14,7 +15,6 @@ from pathlib import Path
 from typing import Any, ClassVar, NamedTuple
 from urllib.parse import urljoin
 
-import pandas as pd
 import requests
 import tqdm  # Add tqdm for progress bar
 from hypha_artifact import AsyncHyphaArtifact
@@ -62,16 +62,35 @@ async def download_files(datasets: list[DatasetTuple]) -> None:
         await artifact.get(dataset.file_path, str(local_path))
 
 
+@functools.lru_cache(maxsize=8)
+def _load_cached_dataset(file_path: Path, file_type: str) -> "pd.DataFrame":
+    """Load and cache a dataset file."""
+    import pandas as pd
+
+    if file_type == "csv":
+        return pd.read_csv(file_path)
+    return pd.read_parquet(file_path)
+
+
 def open_dataset_file(
     dataset_file: str,
     **dataframe_options: object | None,
-) -> pd.DataFrame:
+) -> "pd.DataFrame":
     """Open a dataset file as a DataFrame."""
+    import pandas as pd
+
     file_path = DATA_LAKE_DIR / dataset_file
     if not file_path.exists():
         error_msg = f"Dataset file not found: {file_path}"
         logger.error(error_msg)
         raise FileNotFoundError(error_msg)
+
+    # If no options are provided, use cache
+    if not dataframe_options:
+        file_type = (
+            "csv" if dataset_file.endswith((".csv", ".txt", ".tsv")) else "parquet"
+        )
+        return _load_cached_dataset(file_path, file_type)
 
     if dataset_file.endswith((".csv", ".txt", ".tsv")):
         return pd.read_csv(file_path, **dataframe_options)  # type: ignore[reportCallIssue]
@@ -617,6 +636,8 @@ def safe_execute_decorator(func):
 
 
 def api_schema_to_langchain_tool(api_schema, mode="generated_tool", module_name=None):
+    import pandas as pd
+
     if mode == "generated_tool":
         module = importlib.import_module(
             "biomni.tool.generated_tool." + api_schema["tool_name"] + ".api",

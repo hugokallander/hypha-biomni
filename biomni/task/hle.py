@@ -1,18 +1,20 @@
-import numpy as np
-import pandas as pd
-
 from biomni.task.base_task import base_task
-
-np.random.seed(42)
 
 
 def shuffle(x):
+    import numpy as np
+
     np.random.shuffle(x)
     return x
 
 
 class humanity_last_exam(base_task):
     def __init__(self, path="./data", category="Biology/Medicine", answer_type="multipleChoice"):
+        import numpy as np
+        import pandas as pd
+
+        np.random.seed(42)
+
         if category not in [
             "Other",
             "Humanities/Social Science",
@@ -101,6 +103,8 @@ class humanity_last_exam(base_task):
         self.prompt = """Question: {question}"""
 
     def get_example(self, index=None):
+        import numpy as np
+
         if index is None:
             index = np.random.randint(len(self.query))
 
@@ -118,6 +122,7 @@ class humanity_last_exam(base_task):
 
     def evaluate(self, response):
         ## expected a list/array of symbols
+        import numpy as np
         from sklearn.metrics import accuracy_score
 
         ground_truth = self.answer

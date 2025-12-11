@@ -71,11 +71,6 @@ def liftover_coordinates(
 import os
 from datetime import datetime
 
-import numpy as np
-import pandas as pd
-import torch
-from torch import nn, optim
-
 
 def bayesian_finemapping_with_deep_vi(
     gwas_summary_path,
@@ -128,7 +123,10 @@ def bayesian_finemapping_with_deep_vi(
 
     """
     import matplotlib.pyplot as plt
+    import numpy as np
     import pandas as pd
+    import torch
+    from torch import nn, optim
 
     # Initialize the research log
     log = []
@@ -348,6 +346,7 @@ def analyze_cas9_mutation_outcomes(
     """
     from collections import defaultdict
 
+    import pandas as pd
     from Bio import pairwise2
 
     # Initialize results storage
@@ -1004,6 +1003,7 @@ def fit_genomic_prediction_model(
         variance components, breeding values, and prediction accuracy metrics.
 
     """
+    import numpy as np
     import pandas as pd
     from scipy import linalg
 

@@ -4,13 +4,6 @@ import tempfile
 from collections import namedtuple
 from typing import Any
 
-import pandas as pd
-import requests
-from Bio import Entrez, Restriction, SeqIO
-from Bio.Seq import Seq
-from Bio.SeqUtils import MeltingTemp as mt
-from bs4 import BeautifulSoup
-
 
 def annotate_open_reading_frames(sequence, min_length, search_reverse=False, filter_subsets=False):
     """Find all Open Reading Frames (ORFs) in a DNA sequence using Biopython.
@@ -36,6 +29,7 @@ def annotate_open_reading_frames(sequence, min_length, search_reverse=False, fil
 
     """
     ORF = namedtuple("ORF", ["sequence", "aa_sequence", "start", "end", "strand", "frame"])
+    from Bio.Seq import Seq
 
     def find_orfs_in_frame(seq_str, frame, strand):
         """Helper function to find ORFs in a specific frame."""
@@ -177,6 +171,7 @@ def annotate_plasmid(sequence: str, is_circular: bool = True) -> dict[str, Any]:
 
     """
     try:
+        import pandas as pd
         # Create a temporary directory to store input/output files
         with tempfile.TemporaryDirectory() as temp_dir:
             # Create temporary FASTA file
@@ -263,6 +258,8 @@ def get_gene_coding_sequence(gene_name: str, organism: str, email: str = None) -
             - sequence: Coding sequence of the gene
 
     """
+    from Bio import Entrez, SeqIO
+
     if email:
         Entrez.email = email
 

@@ -6,7 +6,6 @@ from collections.abc import Generator
 from pathlib import Path
 from typing import Any, Literal, Optional, TypedDict
 
-import pandas as pd
 from dotenv import load_dotenv
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 from langchain_core.prompts import ChatPromptTemplate
@@ -250,6 +249,8 @@ class A1:
             # Update the tool registry's document dataframe if it exists
             if hasattr(self, "tool_registry") and self.tool_registry is not None:
                 try:
+                    import pandas as pd
+
                     # Rebuild the document dataframe
                     docs = []
                     for tool_id in range(len(self.tool_registry.tools)):
@@ -586,6 +587,8 @@ class A1:
                 removed = True
                 # Rebuild the document dataframe
                 try:
+                    import pandas as pd
+
                     docs = []
                     for tool_id in range(len(self.tool_registry.tools)):
                         docs.append(
