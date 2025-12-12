@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import os
 from typing import TYPE_CHECKING
 
@@ -28,12 +29,16 @@ def workspace() -> str:
     return os.getenv("HYPHA_WORKSPACE", "hypha-agents")
 
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture(scope="function")
 async def hypha_service(
     server_url: str,
     workspace: str,
 ) -> AsyncGenerator[RemoteService, None]:
-    """Connect to Hypha server and get the Biomni service."""
+    """Connect to Hypha server and get the Biomni service.
+
+    Uses function scope to ensure fresh connections for each test
+    and proper cleanup of resources.
+    """
     load_dotenv(override=True)
 
     server_config: dict[str, str | None] = {
@@ -41,8 +46,11 @@ async def hypha_service(
         "workspace": workspace,
         "token": os.getenv("HYPHA_TOKEN"),
     }
-
     server = await connect_to_server(server_config)
     service = await server.get_service("hypha-agents/biomni")
+
     yield service
-    await server.disconnect()
+
+    # Properly cleanup the connection
+    with contextlib.suppress(Exception):
+        await server.disconnect()
