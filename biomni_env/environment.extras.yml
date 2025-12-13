@@ -14,16 +14,31 @@ dependencies:
   - cooler
   - pykalman
   - trackpy
+  - cnvkit
+  - simpleitk
+  - nibabel
+  - opencv
   - rdkit
   - gseapy
   - gget
   - reportlab
   - python-louvain
+  - muscle
+  - prokka
   - torchvision
   - torchaudio
   - accelerate
   - cpuonly
   - pytorch
+  - macs2
+  - cnvkit
+  - samtools
+  - bcftools
+  - gatk4
+  - snpeff
+  - lumpy-sv
+  - homer
+  - bwa
   # Visualization / notebook stack
   - jupyter
   - notebook
@@ -37,6 +52,7 @@ dependencies:
       - langchain-anthropic
       - langchain-ollama
       - langchain-community
+      - langchain-aws
       - openai
       - gradio
       - beautifulsoup4
@@ -44,11 +60,12 @@ dependencies:
       - PyPDF2
       - googlesearch-python
       - arxiv
-      - harmonypy
+      - harmony-pytorch
       - cobra
       - cellpose
       - fastremap
       - DeepPurpose
       - FlowCytometryTools
+      - flowkit
       - tdc
       - pymed

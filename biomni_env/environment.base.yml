@@ -18,12 +18,15 @@ dependencies:
   - regex
   - sympy
   - scikit-learn
+  - scikit-image
   - matplotlib
   - seaborn
   - networkx
   - statsmodels
+  - pytest
+  - nest-asyncio
   # Bio core (lightweight)
-  - biopython
+  - biopython<1.80
   - pyliftover
   - msprime
   - simpleitk

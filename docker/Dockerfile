@@ -20,7 +20,6 @@ USER ${MAMBA_USER}
 # Copy environment specs for caching
 COPY --chown=${MAMBA_USER}:${MAMBA_USER} biomni_env/environment.base.yml /tmp/environment.base.yml
 COPY --chown=${MAMBA_USER}:${MAMBA_USER} biomni_env/environment.extras.yml /tmp/environment.extras.yml
-COPY --chown=${MAMBA_USER}:${MAMBA_USER} biomni_env/environment.yml /tmp/environment.legacy.yml
 
 # Install base environment
 RUN micromamba install -y -n base -f /tmp/environment.base.yml && \

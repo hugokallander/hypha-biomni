@@ -15,9 +15,10 @@ dependencies:
   - gseapy
   - mageck
   - plannotate
+  - cnvkit
   - pip:
     - scanpy
-    - biopython
+    - biopython<1.80
     - biopandas
     - biotite
     - opencv-python
@@ -60,7 +61,7 @@ dependencies:
     - python-libsbml
     - cobra
     - reportlab
-    #- flowkit
+    - flowkit
     - hmmlearn
     - msprime
     - tskit
