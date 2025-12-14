@@ -1,1 +1,7 @@
+[lint]
 select = ["ALL"]
+
+[lint.per-file-ignores]
+"tests/**/*.py" = [
+    "S101",    # Use of assert is expected in tests
+]

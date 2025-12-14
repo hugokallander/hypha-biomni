@@ -36,7 +36,9 @@ dependencies:
   - bcftools
   - gatk4
   - snpeff
-  - lumpy-sv
+  # NOTE: `lumpy-sv` on bioconda requires Python 2.7 and conflicts with the
+  # base environment (Python 3.11). If you need it, install it in a separate
+  # legacy env/container.
   - homer
   - bwa
   # Visualization / notebook stack
@@ -65,6 +67,8 @@ dependencies:
       - cellpose
       - fastremap
       - DeepPurpose
+      - pandas-flavor
+      - git+https://github.com/bp-kelley/descriptastorus
       - FlowCytometryTools
       - flowkit
       - tdc

@@ -5,7 +5,12 @@ from collections import namedtuple
 from typing import Any
 
 
-def annotate_open_reading_frames(sequence, min_length, search_reverse=False, filter_subsets=False):
+def annotate_open_reading_frames(
+    sequence,
+    min_length,
+    search_reverse=False,
+    filter_subsets=False,
+):
     """Find all Open Reading Frames (ORFs) in a DNA sequence using Biopython.
     Searches both forward and reverse complement strands.
 
@@ -28,7 +33,10 @@ def annotate_open_reading_frames(sequence, min_length, search_reverse=False, fil
                 - frame: Reading frame (1,2,3 for forward; -1,-2,-3 for reverse)
 
     """
-    ORF = namedtuple("ORF", ["sequence", "aa_sequence", "start", "end", "strand", "frame"])
+    ORF = namedtuple(
+        "ORF",
+        ["sequence", "aa_sequence", "start", "end", "strand", "frame"],
+    )
     from Bio.Seq import Seq
 
     def find_orfs_in_frame(seq_str, frame, strand):
@@ -83,7 +91,7 @@ def annotate_open_reading_frames(sequence, min_length, search_reverse=False, fil
                                 end=orig_end,
                                 strand=strand,
                                 frame=frame if strand == "+" else -frame,
-                            )
+                            ),
                         )
 
         return orfs
@@ -113,7 +121,11 @@ def annotate_open_reading_frames(sequence, min_length, search_reverse=False, fil
         for _i, orf in enumerate(all_orfs):
             is_subset = False
             for larger_orf in filtered_orfs:
-                if orf.strand == larger_orf.strand and orf.start >= larger_orf.start and orf.end <= larger_orf.end:
+                if (
+                    orf.strand == larger_orf.strand
+                    and orf.start >= larger_orf.start
+                    and orf.end <= larger_orf.end
+                ):
                     is_subset = True
                     break
             if not is_subset:
@@ -126,7 +138,9 @@ def annotate_open_reading_frames(sequence, min_length, search_reverse=False, fil
     # Calculate summary statistics
     forward_orfs = len([orf for orf in all_orfs if orf.strand == "+"])
     reverse_orfs = len([orf for orf in all_orfs if orf.strand == "-"])
-    avg_length = sum(len(orf.sequence) for orf in all_orfs) / len(all_orfs) if all_orfs else 0
+    avg_length = (
+        sum(len(orf.sequence) for orf in all_orfs) / len(all_orfs) if all_orfs else 0
+    )
 
     summary_stats = {
         "total_orfs": len(all_orfs),
@@ -172,6 +186,7 @@ def annotate_plasmid(sequence: str, is_circular: bool = True) -> dict[str, Any]:
     """
     try:
         import pandas as pd
+
         # Create a temporary directory to store input/output files
         with tempfile.TemporaryDirectory() as temp_dir:
             # Create temporary FASTA file
@@ -244,7 +259,11 @@ def annotate_plasmid(sequence: str, is_circular: bool = True) -> dict[str, Any]:
         return None
 
 
-def get_gene_coding_sequence(gene_name: str, organism: str, email: str = None) -> list[dict[str, str]]:
+def get_gene_coding_sequence(
+    gene_name: str,
+    organism: str,
+    email: str = None,
+) -> list[dict[str, str]]:
     """Retrieves the coding sequence(s) of a specified gene from NCBI Entrez.
 
     Args:
@@ -270,13 +289,20 @@ def get_gene_coding_sequence(gene_name: str, organism: str, email: str = None) -
             record = Entrez.read(handle)
 
         if not record["IdList"]:
-            raise ValueError(f"No records found for gene '{gene_name}' in organism '{organism}'")
+            raise ValueError(
+                f"No records found for gene '{gene_name}' in organism '{organism}'",
+            )
 
         return record["IdList"][0]
 
     def get_refseq_id(gene_id: str) -> str:
         """Get RefSeq ID from gene record."""
-        with Entrez.efetch(db="gene", id=gene_id, rettype="gb", retmode="xml") as handle:
+        with Entrez.efetch(
+            db="gene",
+            id=gene_id,
+            rettype="gb",
+            retmode="xml",
+        ) as handle:
             gene_record = Entrez.read(handle)
 
         try:
@@ -289,12 +315,20 @@ def get_gene_coding_sequence(gene_name: str, organism: str, email: str = None) -
 
     def get_coding_sequences(refseq_id: str) -> list[dict[str, str]]:
         """Extract coding sequences from RefSeq record."""
-        with Entrez.efetch(db="nucleotide", id=refseq_id, rettype="gbwithparts", retmode="text") as handle:
+        with Entrez.efetch(
+            db="nucleotide",
+            id=refseq_id,
+            rettype="gbwithparts",
+            retmode="text",
+        ) as handle:
             seq_record = SeqIO.read(handle, "genbank")
 
         sequences = []
         for feature in seq_record.features:
-            if feature.type == "CDS" and feature.qualifiers.get("gene", ["N/A"])[0] == gene_name:
+            if (
+                feature.type == "CDS"
+                and feature.qualifiers.get("gene", ["N/A"])[0] == gene_name
+            ):
                 cds_seq = feature.location.extract(seq_record).seq
                 sequences.append({"refseq_id": refseq_id, "sequence": str(cds_seq)})
 
@@ -321,10 +355,13 @@ def get_gene_coding_sequence(gene_name: str, organism: str, email: str = None) -
 
     except Exception as e:
         # Log error if needed
-        raise RuntimeError(f"Failed to retrieve coding sequences: {str(e)}") from e
+        raise RuntimeError(f"Failed to retrieve coding sequences: {e!s}") from e
 
 
-def get_plasmid_sequence(identifier: str, is_addgene: bool = None) -> dict[str, Any] | None:
+def get_plasmid_sequence(
+    identifier: str,
+    is_addgene: bool = None,
+) -> dict[str, Any] | None:
     """Unified function to retrieve plasmid sequences from either Addgene or NCBI.
     If is_addgene is True or identifier is numeric, uses Addgene.
     Otherwise searches NCBI using the plasmid name.
@@ -338,9 +375,28 @@ def get_plasmid_sequence(identifier: str, is_addgene: bool = None) -> dict[str, 
         Optional[Dict[str, Any]]: The plasmid sequence and metadata if found, None otherwise
 
     """
+    # Optional dependencies are imported lazily to keep module import lightweight.
+    # (Also keeps Ruff happy about names used in nested helpers.)
+    try:
+        from Bio import Entrez, SeqIO
+    except Exception:  # noqa: BLE001
+        Entrez = None  # type: ignore[assignment]
+        SeqIO = None  # type: ignore[assignment]
 
     def _get_sequence_from_addgene(plasmid_id: str) -> dict[str, Any] | None:
         """Helper function to get sequence from Addgene."""
+        try:
+            import requests
+        except Exception:  # noqa: BLE001
+            print("Missing dependency: requests")
+            return None
+
+        try:
+            from bs4 import BeautifulSoup
+        except Exception:  # noqa: BLE001
+            print("Missing dependency: beautifulsoup4")
+            return None
+
         ADDGENE_BASE_URL = "https://www.addgene.org"
         ADDGENE_PLASMID_SEQUENCES_PATH = "/{plasmid_id}/sequences/"
 
@@ -376,9 +432,18 @@ def get_plasmid_sequence(identifier: str, is_addgene: bool = None) -> dict[str, 
 
     def _get_sequence_from_ncbi(plasmid_name: str) -> dict[str, Any] | None:
         """Helper function to get sequence from NCBI."""
+        if Entrez is None or SeqIO is None:
+            print("Missing dependency: biopython (Bio.Entrez / Bio.SeqIO)")
+            return None
+
         # First get the accession number
         query = f"Cloning vector {plasmid_name}"
-        with Entrez.esearch(db="nuccore", term=query, retmax=1, sort="relevance") as handle:
+        with Entrez.esearch(
+            db="nuccore",
+            term=query,
+            retmax=1,
+            sort="relevance",
+        ) as handle:
             record = Entrez.read(handle)
 
         if not record["IdList"]:
@@ -388,7 +453,12 @@ def get_plasmid_sequence(identifier: str, is_addgene: bool = None) -> dict[str, 
         plasmid_id = record["IdList"][0]
 
         # Get the sequence using the accession
-        with Entrez.efetch(db="nuccore", id=plasmid_id, rettype="fasta", retmode="text") as handle:
+        with Entrez.efetch(
+            db="nuccore",
+            id=plasmid_id,
+            rettype="fasta",
+            retmode="text",
+        ) as handle:
             try:
                 sequence = SeqIO.read(handle, "fasta")
                 return {
@@ -403,7 +473,7 @@ def get_plasmid_sequence(identifier: str, is_addgene: bool = None) -> dict[str, 
                     "sequence": str(sequence.seq),
                 }
             except Exception as e:
-                print(f"Error retrieving sequence for {plasmid_name}: {str(e)}")
+                print(f"Error retrieving sequence for {plasmid_name}: {e!s}")
                 return None
 
     # Auto-detect if is_addgene wasn't specified
@@ -412,8 +482,7 @@ def get_plasmid_sequence(identifier: str, is_addgene: bool = None) -> dict[str, 
 
     if is_addgene:
         return _get_sequence_from_addgene(identifier)
-    else:
-        return _get_sequence_from_ncbi(identifier)
+    return _get_sequence_from_ncbi(identifier)
 
 
 def align_sequences(long_seq: str, short_seqs: str | list[str]) -> list[dict]:
@@ -437,7 +506,11 @@ def align_sequences(long_seq: str, short_seqs: str | list[str]) -> list[dict]:
     """
     # Standardize input
     long_seq = long_seq.upper()
-    short_seqs = [short_seqs.upper()] if isinstance(short_seqs, str) else [seq.upper() for seq in short_seqs]
+    short_seqs = (
+        [short_seqs.upper()]
+        if isinstance(short_seqs, str)
+        else [seq.upper() for seq in short_seqs]
+    )
 
     def reverse_complement(seq):
         """Helper function to get reverse complement of a sequence."""
@@ -469,7 +542,9 @@ def align_sequences(long_seq: str, short_seqs: str | list[str]) -> list[dict]:
 
                 # If we have 0 or 1 mismatches, record the alignment
                 if len(mismatches) <= 1:
-                    alignments.append({"position": i, "strand": strand, "mismatches": mismatches})
+                    alignments.append(
+                        {"position": i, "strand": strand, "mismatches": mismatches},
+                    )
 
         results.append({"sequence": short_seq, "alignments": alignments})
 
@@ -490,7 +565,12 @@ def align_sequences(long_seq: str, short_seqs: str | list[str]) -> list[dict]:
     }
 
 
-def pcr_simple(sequence: str, forward_primer: str, reverse_primer: str, circular: bool = False) -> dict:
+def pcr_simple(
+    sequence: str,
+    forward_primer: str,
+    reverse_primer: str,
+    circular: bool = False,
+) -> dict:
     """Simulate PCR amplification with given primers and sequence.
 
     Args:
@@ -503,9 +583,24 @@ def pcr_simple(sequence: str, forward_primer: str, reverse_primer: str, circular
         dict: Results of PCR simulation including products and primer binding details
 
     """
+    try:
+        from Bio.Seq import Seq
+    except Exception as e:  # noqa: BLE001
+        return {
+            "explanation": "PCR simulation requires Biopython (Bio.Seq.Seq).",
+            "success": False,
+            "message": f"Biopython import failed: {e}",
+            "products": [],
+            "forward_binding_sites": 0,
+            "reverse_binding_sites": 0,
+        }
+
     # First check if primers are valid using existing function
     fwd_result = align_sequences(sequence, forward_primer)["sequences"][0]["alignments"]
-    rev_result = align_sequences(sequence, str(Seq(reverse_primer).reverse_complement()))["sequences"][0]["alignments"]
+    rev_result = align_sequences(
+        sequence,
+        str(Seq(reverse_primer).reverse_complement()),
+    )["sequences"][0]["alignments"]
 
     if not fwd_result or not rev_result:
         return {
@@ -553,9 +648,13 @@ def pcr_simple(sequence: str, forward_primer: str, reverse_primer: str, circular
                     "forward_position": fwd_pos,
                     "reverse_position": rev_pos,
                     "sequence": product,
-                    "forward_mismatches": fwd_result[fwd_positions.index(fwd_pos)]["mismatches"],
-                    "reverse_mismatches": rev_result[rev_positions.index(rev_pos)]["mismatches"],
-                }
+                    "forward_mismatches": fwd_result[fwd_positions.index(fwd_pos)][
+                        "mismatches"
+                    ],
+                    "reverse_mismatches": rev_result[rev_positions.index(rev_pos)][
+                        "mismatches"
+                    ],
+                },
             )
 
     if not products:
@@ -596,7 +695,11 @@ def pcr_simple(sequence: str, forward_primer: str, reverse_primer: str, circular
     }
 
 
-def digest_sequence(dna_sequence: str, enzyme_names: list[str], is_circular: bool = True) -> dict:
+def digest_sequence(
+    dna_sequence: str,
+    enzyme_names: list[str],
+    is_circular: bool = True,
+) -> dict:
     """Simulates restriction enzyme digestion using Biopython's catalyze method and returns the resulting DNA fragments.
 
     Args:
@@ -608,6 +711,17 @@ def digest_sequence(dna_sequence: str, enzyme_names: list[str], is_circular: boo
         Dict: Dictionary containing the digestion fragments and their properties including positions
 
     """
+    try:
+        from Bio.Restriction import Restriction
+        from Bio.Seq import Seq
+    except Exception as e:  # noqa: BLE001
+        return {
+            "explanation": "Restriction digest simulation requires Biopython.",
+            "success": False,
+            "error": f"Biopython import failed: {e}",
+            "fragments": [],
+        }
+
     # Convert sequence to Biopython Seq object
     seq = Seq(dna_sequence)
     seq_length = len(seq)
@@ -626,12 +740,18 @@ def digest_sequence(dna_sequence: str, enzyme_names: list[str], is_circular: boo
     fragments = []
     if not all_cut_positions:
         # No cuts - return full sequence
-        fragments.append({"fragment": str(seq), "length": seq_length, "start": 0, "end": seq_length})
+        fragments.append(
+            {"fragment": str(seq), "length": seq_length, "start": 0, "end": seq_length},
+        )
     # Handle linear and circular cases
     elif is_circular:
         for i in range(len(all_cut_positions)):
             start = all_cut_positions[i]
-            end = all_cut_positions[0] + seq_length if i == len(all_cut_positions) - 1 else all_cut_positions[i + 1]
+            end = (
+                all_cut_positions[0] + seq_length
+                if i == len(all_cut_positions) - 1
+                else all_cut_positions[i + 1]
+            )
 
             # Get fragment sequence
             if end > seq_length:
@@ -646,7 +766,7 @@ def digest_sequence(dna_sequence: str, enzyme_names: list[str], is_circular: boo
                     "start": start,
                     "end": end if end <= seq_length else end - seq_length,
                     "is_wrapped": end > seq_length,
-                }
+                },
             )
     else:
         # First fragment
@@ -657,7 +777,7 @@ def digest_sequence(dna_sequence: str, enzyme_names: list[str], is_circular: boo
                     "length": all_cut_positions[0],
                     "start": 0,
                     "end": all_cut_positions[0],
-                }
+                },
             )
 
         # Middle fragments
@@ -670,7 +790,7 @@ def digest_sequence(dna_sequence: str, enzyme_names: list[str], is_circular: boo
                     "length": end - start,
                     "start": start,
                     "end": end,
-                }
+                },
             )
 
         # Last fragment
@@ -681,7 +801,7 @@ def digest_sequence(dna_sequence: str, enzyme_names: list[str], is_circular: boo
                     "length": seq_length - all_cut_positions[-1],
                     "start": all_cut_positions[-1],
                     "end": seq_length,
-                }
+                },
             )
 
     # Sort fragments by length (descending)
@@ -719,7 +839,11 @@ def digest_sequence(dna_sequence: str, enzyme_names: list[str], is_circular: boo
     return results
 
 
-def find_restriction_sites(dna_sequence: str, enzymes: list[str], is_circular: bool = True) -> dict:
+def find_restriction_sites(
+    dna_sequence: str,
+    enzymes: list[str],
+    is_circular: bool = True,
+) -> dict:
     """Identifies restriction enzyme sites in a given DNA sequence for specified enzymes.
 
     Args:
@@ -731,6 +855,18 @@ def find_restriction_sites(dna_sequence: str, enzymes: list[str], is_circular: b
         Dict: Dictionary containing all identified restriction sites
 
     """
+    try:
+        from Bio.Restriction import Restriction
+        from Bio.Seq import Seq
+    except Exception as e:  # noqa: BLE001
+        return {
+            "explanation": "Restriction site search requires Biopython.",
+            "success": False,
+            "error": f"Biopython import failed: {e}",
+            "sequence_info": {"length": len(dna_sequence), "is_circular": is_circular},
+            "restriction_sites": {},
+        }
+
     # Convert string to Bio.Seq object
     seq = Seq(dna_sequence.upper())
 
@@ -785,7 +921,10 @@ def find_restriction_sites(dna_sequence: str, enzymes: list[str], is_circular: b
     return results
 
 
-def find_restriction_enzymes(sequence: str, is_circular: bool = False) -> dict[str, list]:
+def find_restriction_enzymes(
+    sequence: str,
+    is_circular: bool = False,
+) -> dict[str, list]:
     """Finds common restriction enzyme sites in a DNA sequence.
 
     Args:
@@ -796,12 +935,28 @@ def find_restriction_enzymes(sequence: str, is_circular: bool = False) -> dict[s
         Dict[str, list]: Dictionary of enzymes and their cut positions
 
     """
+    # Import Biopython lazily to avoid hard dependency at module import time.
+    try:
+        from Bio.Restriction import Restriction
+        from Bio.Seq import Seq
+    except Exception as e:  # noqa: BLE001
+        return {
+            "explanation": "Restriction enzyme site search requires Biopython.",
+            "enzyme_sites": {},
+            "success": False,
+            "error": f"Biopython import failed: {e}",
+        }
+
     # Convert to Bio.Seq and analyze
     seq = Seq(sequence.upper())
     analysis = Restriction.CommOnly.search(seq, linear=not is_circular)
 
     # Keep only enzymes that have sites
-    sites = {str(enzyme): list(positions) for enzyme, positions in analysis.items() if positions}
+    sites = {
+        str(enzyme): list(positions)
+        for enzyme, positions in analysis.items()
+        if positions
+    }
 
     return {
         "explanation": (
@@ -813,6 +968,7 @@ def find_restriction_enzymes(sequence: str, is_circular: bool = False) -> dict[s
             "  * For circular sequences, positions wrap around the sequence end"
         ),
         "enzyme_sites": sites,
+        "success": True,
     }
 
 
@@ -849,7 +1005,9 @@ def find_sequence_mutations(query_sequence, reference_sequence, query_start=1):
         }
 
     mutations = []
-    for i, (query_aa, ref_aa) in enumerate(zip(query_sequence, reference_sequence, strict=False)):
+    for i, (query_aa, ref_aa) in enumerate(
+        zip(query_sequence, reference_sequence, strict=False),
+    ):
         if ref_aa not in (query_aa, "-") and query_aa != "-":  # Ignore gaps
             position = query_start + i
             mutations.append(f"{ref_aa}{position}{query_aa}")
@@ -897,18 +1055,46 @@ def design_knockout_sgrna(
         "mouse": data_lake_path + "/sgRNA_KO_SP_mouse.txt",
     }
 
-    # Use fixed library pathAdd commentMore actions
+    try:
+        import pandas as pd
+    except Exception as e:  # noqa: BLE001
+        return {
+            "explanation": "Design sgRNAs from pre-computed libraries.",
+            "success": False,
+            "error": f"Missing dependency: pandas ({e})",
+            "gene_name": gene_name,
+            "species": species,
+            "guides": [],
+        }
+
+    if species.lower() not in DEFAULT_LIBRARIES:
+        return {
+            "explanation": "Design sgRNAs from pre-computed libraries.",
+            "success": False,
+            "error": f"Unsupported species '{species}'. Supported: {', '.join(DEFAULT_LIBRARIES.keys())}",
+            "gene_name": gene_name,
+            "species": species,
+            "guides": [],
+        }
+
     library_path = DEFAULT_LIBRARIES[species.lower()]
 
     # Check if library file exists
     if not os.path.exists(library_path):
-        raise FileNotFoundError(f"Library file for {species} not found at path: {library_path}")
+        return {
+            "explanation": "Design sgRNAs from pre-computed libraries.",
+            "success": False,
+            "error": f"Library file for {species} not found at path: {library_path}",
+            "gene_name": gene_name,
+            "species": species,
+            "guides": [],
+        }
 
     # Load sgRNA library from S3
     try:
         df = pd.read_csv(library_path, delimiter="\t")
     except Exception as e:
-        raise RuntimeError(f"Failed to load sgRNA library: {str(e)}") from None
+        raise RuntimeError(f"Failed to load sgRNA library: {e!s}") from None
 
     # Filter for target gene
     gene_name = gene_name.upper()  # Ensure consistent capitalization
@@ -1024,7 +1210,9 @@ def get_golden_gate_assembly_protocol(
     # Validate enzyme name
     supported_enzymes = ["BsaI", "BsmBI", "BbsI", "Esp3I", "BtgZI", "SapI"]
     if enzyme_name not in supported_enzymes:
-        raise ValueError(f"Unsupported enzyme: {enzyme_name}. Currently supporting: {', '.join(supported_enzymes)}")
+        raise ValueError(
+            f"Unsupported enzyme: {enzyme_name}. Currently supporting: {', '.join(supported_enzymes)}",
+        )
 
     # Determine which protocol to use based on number of inserts
     if num_inserts == 1:
@@ -1034,7 +1222,7 @@ def get_golden_gate_assembly_protocol(
                     "temperature": "37°C",
                     "time": "1 hour",
                     "description": "Cleavage and ligation",
-                }
+                },
             ]
         else:
             thermal_protocol = [
@@ -1042,14 +1230,14 @@ def get_golden_gate_assembly_protocol(
                     "temperature": "37°C",
                     "time": "5 minutes",
                     "description": "Cleavage and ligation",
-                }
+                },
             ]
         thermal_protocol.append(
             {
                 "temperature": "60°C",
                 "time": "5 minutes",
                 "description": "Enzyme inactivation",
-            }
+            },
         )
     elif 2 <= num_inserts <= 10:
         thermal_protocol = [
@@ -1122,7 +1310,7 @@ def get_golden_gate_assembly_protocol(
                     "name": f"Insert {i + 1} ({length} bp)",
                     "amount": f"{insert_ng:.1f} ng ({insert_pmol:.3f} pmol)",
                     "molar_ratio": "2:1 (insert:vector)",
-                }
+                },
             )
     else:
         # Generic insert information when no lengths provided
@@ -1131,7 +1319,7 @@ def get_golden_gate_assembly_protocol(
                 "name": "Insert DNA (precloned or amplicon)",
                 "amount": "Variable based on length and concentration",
                 "note": "Use 2:1 molar ratio (insert:vector) for optimal assembly",
-            }
+            },
         ]
 
     # Create component list for the protocol
@@ -1139,7 +1327,7 @@ def get_golden_gate_assembly_protocol(
         {
             "name": f"Destination Vector ({vector_length} bp)",
             "amount": f"{vector_amount_ng} ng ({vector_pmol:.3f} pmol)",
-        }
+        },
     ]
 
     # Add insert components
@@ -1155,7 +1343,7 @@ def get_golden_gate_assembly_protocol(
                 "volume": assembly_mix_volume,
             },
             {"name": "Nuclease-free H₂O", "volume": "to 20 μl"},
-        ]
+        ],
     )
 
     protocol = {
@@ -1189,7 +1377,8 @@ def get_golden_gate_assembly_protocol(
 
 
 def get_bacterial_transformation_protocol(
-    antibiotic: str = "ampicillin", is_repetitive: bool = False
+    antibiotic: str = "ampicillin",
+    is_repetitive: bool = False,
 ) -> dict[str, Any]:
     """Return a standard protocol for bacterial transformation.
 
@@ -1259,9 +1448,11 @@ def get_bacterial_transformation_protocol(
         ],
         "notes": [
             "Always include positive and negative controls for transformation",
-            f"For repetitive sequences, the lower temperature ({incubation_temp}) helps maintain sequence integrity"
-            if is_repetitive
-            else "Standard incubation at 37°C works well for most plasmids",
+            (
+                f"For repetitive sequences, the lower temperature ({incubation_temp}) helps maintain sequence integrity"
+                if is_repetitive
+                else "Standard incubation at 37°C works well for most plasmids"
+            ),
             f"Use fresh plates containing {antibiotic} for best results",
         ],
     }
@@ -1295,6 +1486,16 @@ def design_primer(
         Optional[Dict[str, Any]]: Dictionary with primer information or None if no suitable primer found
 
     """
+    # Import Biopython lazily (MeltingTemp helper).
+    try:
+        from Bio.SeqUtils import MeltingTemp as mt
+    except Exception as e:  # noqa: BLE001
+        return {
+            "explanation": "Primer design requires Biopython (Bio.SeqUtils.MeltingTemp).",
+            "success": False,
+            "error": f"Biopython import failed: {e}",
+        }
+
     # Extract candidate region for primer design
     primer_region_start = start_pos
     primer_region_end = min(start_pos + search_window, len(sequence))
@@ -1302,7 +1503,11 @@ def design_primer(
 
     # Handle case where region is too small
     if len(primer_region) < primer_length:
-        return None
+        return {
+            "explanation": "No suitable primer found in the given window.",
+            "success": False,
+            "error": "Search window too small for requested primer_length.",
+        }
 
     # Generate candidate primers
     best_primer = None
@@ -1342,6 +1547,15 @@ def design_primer(
                 "score": score,
             }
 
+    if best_primer is None:
+        return {
+            "explanation": "No suitable primer found in the given window.",
+            "success": False,
+            "error": "No candidate satisfied GC/Tm constraints.",
+        }
+
+    best_primer["success"] = True
+    best_primer["explanation"] = "Designed primer candidate meeting GC/Tm constraints."
     return best_primer
 
 
@@ -1421,7 +1635,9 @@ def design_verification_primers(
     # Helper functions for region coverage calculations
     def is_position_covered(pos, covered_regions):
         """Check if a position is covered by any region."""
-        return any(region["start"] <= pos <= region["end"] for region in covered_regions)
+        return any(
+            region["start"] <= pos <= region["end"] for region in covered_regions
+        )
 
     def is_region_fully_covered(covered_regions, start, end):
         """Check if the target region is fully covered."""
@@ -1429,7 +1645,10 @@ def design_verification_primers(
         merged = merge_overlapping_regions(covered_regions)
 
         # Check if merged regions cover the entire target
-        return all(any(r["start"] <= pos <= r["end"] for r in merged) for pos in range(start, end + 1))
+        return all(
+            any(r["start"] <= pos <= r["end"] for r in merged)
+            for pos in range(start, end + 1)
+        )
 
     def merge_overlapping_regions(regions):
         """Merge overlapping regions in the list."""
@@ -1469,7 +1688,10 @@ def design_verification_primers(
     # If plasmid is circular, we may need to handle wrapping
     if is_circular and end >= len(plasmid_sequence):
         # Adjust for circular plasmid wrapping
-        effective_sequence = plasmid_sequence + plasmid_sequence[: end - len(plasmid_sequence) + coverage_length]
+        effective_sequence = (
+            plasmid_sequence
+            + plasmid_sequence[: end - len(plasmid_sequence) + coverage_length]
+        )
     else:
         effective_sequence = plasmid_sequence
 
@@ -1490,7 +1712,10 @@ def design_verification_primers(
             primer_pool.append(primer_info)
 
         # Find alignments for all existing primers
-        alignment_results = align_sequences(effective_sequence, [p["sequence"] for p in primer_pool])
+        alignment_results = align_sequences(
+            effective_sequence,
+            [p["sequence"] for p in primer_pool],
+        )
 
         # Create list of all potential primer matches with their coverage
         potential_primers = []
@@ -1527,7 +1752,7 @@ def design_verification_primers(
                             "source": "existing",
                             "covers": [covered_start, covered_end],
                             "coverage_length": covered_end - covered_start + 1,
-                        }
+                        },
                     )
 
         # Sort potential primers by coverage length (descending)
@@ -1541,7 +1766,11 @@ def design_verification_primers(
             selected_primers = []
 
             # Keep selecting primers until we've covered everything or run out of primers
-            while potential_primers and not is_region_fully_covered(covered_regions, start, end):
+            while potential_primers and not is_region_fully_covered(
+                covered_regions,
+                start,
+                end,
+            ):
                 # Take the first remaining primer (with most coverage)
                 best_primer = potential_primers.pop(0)
 
@@ -1559,7 +1788,9 @@ def design_verification_primers(
                     selected_primers.append(best_primer)
 
                     # Update covered regions
-                    covered_regions.append({"start": new_covered_start, "end": new_covered_end})
+                    covered_regions.append(
+                        {"start": new_covered_start, "end": new_covered_end},
+                    )
 
                     # Merge overlapping regions
                     covered_regions = merge_overlapping_regions(covered_regions)
@@ -1573,7 +1804,7 @@ def design_verification_primers(
                         "start": primer["covers"][0],
                         "end": primer["covers"][1],
                         "length": primer["covers"][1] - primer["covers"][0] + 1,
-                    }
+                    },
                 )
 
                 used_existing_primers = True
@@ -1584,7 +1815,9 @@ def design_verification_primers(
         uncovered_regions = [{"start": start, "end": end}]
     else:
         # Sort and merge coverage map
-        covered_regions = [{"start": cm["start"], "end": cm["end"]} for cm in coverage_map]
+        covered_regions = [
+            {"start": cm["start"], "end": cm["end"]} for cm in coverage_map
+        ]
         covered_regions = merge_overlapping_regions(covered_regions)
 
         # Find gaps
@@ -1593,7 +1826,9 @@ def design_verification_primers(
 
         for region in covered_regions:
             if current_pos < region["start"]:
-                uncovered_regions.append({"start": current_pos, "end": region["start"] - 1})
+                uncovered_regions.append(
+                    {"start": current_pos, "end": region["start"] - 1},
+                )
             current_pos = max(current_pos, region["end"] + 1)
 
         if current_pos <= end:
@@ -1608,15 +1843,20 @@ def design_verification_primers(
         # Determine how many primers we need for this gap
         num_primers_needed = max(
             1,
-            (gap_length // (coverage_length // 2)) + (1 if gap_length % (coverage_length // 2) > 0 else 0),
+            (gap_length // (coverage_length // 2))
+            + (1 if gap_length % (coverage_length // 2) > 0 else 0),
         )
 
         # Calculate positions for even distribution of primers
         positions = []
         if num_primers_needed == 1:
-            positions.append(max(0, gap_start - 100))  # Start primer a bit before the gap
+            positions.append(
+                max(0, gap_start - 100),
+            )  # Start primer a bit before the gap
         else:
-            interval = gap_length / (num_primers_needed - 0.5)  # Distribute primers evenly
+            interval = gap_length / (
+                num_primers_needed - 0.5
+            )  # Distribute primers evenly
             for i in range(num_primers_needed):
                 pos = max(0, int(gap_start - 100 + i * interval))
                 positions.append(min(pos, len(effective_sequence) - primer_length))
@@ -1657,7 +1897,7 @@ def design_verification_primers(
                         "gc": new_primer["gc"],
                         "tm": new_primer["tm"],
                         "covers": [covered_start, covered_end],
-                    }
+                    },
                 )
 
                 # Add to coverage map
@@ -1667,7 +1907,7 @@ def design_verification_primers(
                         "start": covered_start,
                         "end": covered_end,
                         "length": covered_end - covered_start + 1,
-                    }
+                    },
                 )
 
     # Recalculate coverage to account for new primers
@@ -1686,7 +1926,9 @@ def design_verification_primers(
     }
 
     if not is_fully_covered:
-        result["warning"] = "The target region may not be fully covered. Consider manually reviewing the coverage map."
+        result["warning"] = (
+            "The target region may not be fully covered. Consider manually reviewing the coverage map."
+        )
 
     return result
 
@@ -1748,7 +1990,12 @@ def design_golden_gate_oligos(
     for i in range(len(backbone_sequence)):
         # Check if this position starts a recognition site
         if is_circular and i + len(recognition_site) > len(backbone_sequence):
-            site_seq = backbone_sequence[i:] + backbone_sequence[: i + len(recognition_site) - len(backbone_sequence)]
+            site_seq = (
+                backbone_sequence[i:]
+                + backbone_sequence[
+                    : i + len(recognition_site) - len(backbone_sequence)
+                ]
+            )
         elif i + len(recognition_site) <= len(backbone_sequence):
             site_seq = backbone_sequence[i : i + len(recognition_site)]
         else:
@@ -1777,8 +2024,12 @@ def design_golden_gate_oligos(
 
         if site["strand"] == "forward":
             # Calculate cut positions for forward strand site
-            cut_fwd = (pos + len(recognition_site) + offset_fwd) % len(backbone_sequence)
-            cut_rev = (pos + len(recognition_site) + offset_rev) % len(backbone_sequence)
+            cut_fwd = (pos + len(recognition_site) + offset_fwd) % len(
+                backbone_sequence,
+            )
+            cut_rev = (pos + len(recognition_site) + offset_rev) % len(
+                backbone_sequence,
+            )
         else:  # reverse strand
             # For reverse sites, cuts happen on the other side of the recognition site
             cut_rev = (pos - offset_fwd) % len(backbone_sequence)
@@ -1802,7 +2053,7 @@ def design_golden_gate_oligos(
                 "cut_fwd": cut_fwd,
                 "cut_rev": cut_rev,
                 "overhang": overhang,
-            }
+            },
         )
 
     # Step 3: For Golden Gate, identify the two overhangs that will flank the insert
@@ -1823,7 +2074,9 @@ def design_golden_gate_oligos(
     fw_oligo = upstream_overhang + insert_sequence
 
     # For reverse oligo, use reverse complement of insert + reverse complement of downstream overhang
-    rev_oligo = reverse_complement(insert_sequence + reverse_complement(downstream_overhang))
+    rev_oligo = reverse_complement(
+        insert_sequence + reverse_complement(downstream_overhang),
+    )
 
     return {
         "success": True,
@@ -1836,7 +2089,10 @@ def design_golden_gate_oligos(
                 f"Reverse oligo: Add {reverse_complement(downstream_overhang)} to 5' end of reverse complement of your insert",
             ],
         },
-        "cut_sites": [{"position": site["site_position"], "overhang": site["overhang"]} for site in cut_sites],
+        "cut_sites": [
+            {"position": site["site_position"], "overhang": site["overhang"]}
+            for site in cut_sites
+        ],
         "assembly_notes": f"Found {len(restriction_sites)} {enzyme_name} sites. Using overhangs {upstream_overhang} and {downstream_overhang} for assembly.",
     }
 
@@ -1904,7 +2160,9 @@ def golden_gate_assembly(
         fragment_name = fragment.get("name", f"fragment_{idx + 1}")
 
         # Check if this is a double-stranded fragment (contains 'sequence' but not oligos)
-        if "sequence" in fragment and not ("fwd_oligo" in fragment and "rev_oligo" in fragment):
+        if "sequence" in fragment and not (
+            "fwd_oligo" in fragment and "rev_oligo" in fragment
+        ):
             # Process the double-stranded fragment to extract oligos
             ds_sequence = fragment["sequence"].upper()
 
@@ -1965,7 +2223,7 @@ def golden_gate_assembly(
                     "fwd_oligo": fwd_oligo,
                     "rev_oligo": rev_oligo,
                     "original_sequence": ds_sequence,
-                }
+                },
             )
 
         # Handle traditional oligo format
@@ -1975,7 +2233,7 @@ def golden_gate_assembly(
                     "name": fragment_name,
                     "fwd_oligo": fragment["fwd_oligo"],
                     "rev_oligo": fragment["rev_oligo"],
-                }
+                },
             )
         else:
             return {
@@ -1995,7 +2253,10 @@ def golden_gate_assembly(
             # Check if we need to wrap around for the recognition site
             if i + len(recognition_site) > len(backbone_sequence):
                 site_seq = (
-                    backbone_sequence[i:] + backbone_sequence[: i + len(recognition_site) - len(backbone_sequence)]
+                    backbone_sequence[i:]
+                    + backbone_sequence[
+                        : i + len(recognition_site) - len(backbone_sequence)
+                    ]
                 )
             else:
                 site_seq = backbone_sequence[i : i + len(recognition_site)]
@@ -2032,8 +2293,12 @@ def golden_gate_assembly(
 
         if site["strand"] == "forward":
             # Calculate cut positions for forward strand site
-            cut_fwd = (pos + len(recognition_site) + offset_fwd) % len(backbone_sequence)
-            cut_rev = (pos + len(recognition_site) + offset_rev) % len(backbone_sequence)
+            cut_fwd = (pos + len(recognition_site) + offset_fwd) % len(
+                backbone_sequence,
+            )
+            cut_rev = (pos + len(recognition_site) + offset_rev) % len(
+                backbone_sequence,
+            )
         else:  # reverse strand
             # For reverse sites, cuts happen on the other side of the recognition site
             cut_rev = (pos - offset_fwd) % len(backbone_sequence)
@@ -2045,7 +2310,9 @@ def golden_gate_assembly(
                 cut_fwd += len(backbone_sequence)
 
         # Ensure cut positions are valid
-        if 0 <= cut_fwd < len(backbone_sequence) and 0 <= cut_rev < len(backbone_sequence):
+        if 0 <= cut_fwd < len(backbone_sequence) and 0 <= cut_rev < len(
+            backbone_sequence,
+        ):
             # Extract overhang sequence
             if cut_fwd < cut_rev:
                 overhang = backbone_sequence[cut_fwd:cut_rev]
@@ -2059,7 +2326,7 @@ def golden_gate_assembly(
                     "cut_fwd": cut_fwd,
                     "cut_rev": cut_rev,
                     "overhang": overhang,
-                }
+                },
             )
 
     if not cut_fragments:
@@ -2073,8 +2340,12 @@ def golden_gate_assembly(
     fragment_overhangs = []
     for idx, fragment in enumerate(processed_fragments):
         # Clean oligo sequences
-        fwd_oligo = "".join(c for c in fragment.get("fwd_oligo", "").upper() if c in "ATGC")
-        rev_oligo = "".join(c for c in fragment.get("rev_oligo", "").upper() if c in "ATGC")
+        fwd_oligo = "".join(
+            c for c in fragment.get("fwd_oligo", "").upper() if c in "ATGC"
+        )
+        rev_oligo = "".join(
+            c for c in fragment.get("rev_oligo", "").upper() if c in "ATGC"
+        )
 
         # Get the overhang length (typically 4 bases for most Type IIS enzymes)
         overhang_length = 4
@@ -2093,7 +2364,7 @@ def golden_gate_assembly(
                 "rev_overhang": rev_overhang,
                 "insert": insert_seq,
                 "rc_rev_overhang": reverse_complement(rev_overhang),
-            }
+            },
         )
 
     # Step 4: For multi-fragment assembly, determine the correct order
@@ -2170,17 +2441,24 @@ def golden_gate_assembly(
                 if is_circular:
                     # For circular plasmids, we keep the region between end_cut and start_cut
                     if end_cut["cut_rev"] <= start_cut["cut_fwd"]:
-                        backbone_segment = backbone_sequence[end_cut["cut_rev"] : start_cut["cut_fwd"]]
+                        backbone_segment = backbone_sequence[
+                            end_cut["cut_rev"] : start_cut["cut_fwd"]
+                        ]
                     else:
                         # Handle wrapping around the origin
                         backbone_segment = (
-                            backbone_sequence[end_cut["cut_rev"] :] + backbone_sequence[: start_cut["cut_fwd"]]
+                            backbone_sequence[end_cut["cut_rev"] :]
+                            + backbone_sequence[: start_cut["cut_fwd"]]
                         )
                 else:
                     # For linear backbones, we keep everything outside the cut region
                     backbone_segment = (
-                        backbone_sequence[: min(start_cut["cut_fwd"], end_cut["cut_rev"])]
-                        + backbone_sequence[max(start_cut["cut_fwd"], end_cut["cut_rev"]) :]
+                        backbone_sequence[
+                            : min(start_cut["cut_fwd"], end_cut["cut_rev"])
+                        ]
+                        + backbone_sequence[
+                            max(start_cut["cut_fwd"], end_cut["cut_rev"]) :
+                        ]
                     )
 
                 # Then concatenate all fragment inserts in the correct order
@@ -2194,7 +2472,9 @@ def golden_gate_assembly(
                     insert_segment += fragment_overhangs[frag_idx]["insert"]
 
                     # Include the reverse overhang for each fragment
-                    insert_segment += reverse_complement(fragment_overhangs[frag_idx]["rev_overhang"])
+                    insert_segment += reverse_complement(
+                        fragment_overhangs[frag_idx]["rev_overhang"],
+                    )
 
                 # Final assembled sequence
                 assembled_sequence = backbone_segment + insert_segment
@@ -2206,7 +2486,9 @@ def golden_gate_assembly(
                     "fragments_used": len(processed_fragments),
                     "cuts_used": 2,  # We use exactly 2 cuts for the assembly
                     "backbone_fragment_size": len(backbone_segment),
-                    "assembly_order": [processed_fragments[i]["name"] for i in assembled_fragments],
+                    "assembly_order": [
+                        processed_fragments[i]["name"] for i in assembled_fragments
+                    ],
                 }
 
     # If we get here, we couldn't find a valid assembly

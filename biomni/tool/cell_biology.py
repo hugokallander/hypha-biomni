@@ -85,8 +85,10 @@ def quantify_cell_cycle_phases_from_microscopy(image_paths, output_dir="./result
                     intensity_std = np.std(intensity_profile)
                     intensity_max = np.max(intensity_profile)
                     # High standard deviation and max intensity suggests septum presence
-                    has_septum = intensity_std > 0.2 * np.mean(intensity_profile) and intensity_max > 1.5 * np.mean(
+                    has_septum = intensity_std > 0.2 * np.mean(
                         intensity_profile
+                    ) and intensity_max > 1.5 * np.mean(
+                        intensity_profile,
                     )
 
             # Store features
@@ -99,7 +101,7 @@ def quantify_cell_cycle_phases_from_microscopy(image_paths, output_dir="./result
                     circularity,
                     has_septum,
                     i,  # include image index
-                ]
+                ],
             )
 
     log += f"\nTotal cells detected across all images: {len(all_cells)}\n\n"
@@ -139,7 +141,9 @@ def quantify_cell_cycle_phases_from_microscopy(image_paths, output_dir="./result
     percentages = (counts / len(phases)) * 100
 
     # Create results table
-    results_df = pd.DataFrame({"Phase": unique_phases, "Count": counts, "Percentage": percentages})
+    results_df = pd.DataFrame(
+        {"Phase": unique_phases, "Count": counts, "Percentage": percentages}
+    )
 
     # Save results
     results_path = os.path.join(output_dir, "cell_cycle_phases.csv")
@@ -147,19 +151,21 @@ def quantify_cell_cycle_phases_from_microscopy(image_paths, output_dir="./result
 
     # Log results
     log += "### Cell Cycle Phase Distribution\n\n"
-    for phase, count, percentage in zip(unique_phases, counts, percentages, strict=False):
+    for phase, count, percentage in zip(
+        unique_phases, counts, percentages, strict=False
+    ):
         log += f"- {phase}: {count} cells ({percentage:.2f}%)\n"
 
     log += f"\nResults saved to: {results_path}\n"
     log += "\nNote: This analysis uses simplified morphological features for classification. "
-    log += (
-        "For more accurate results, a supervised machine learning approach with labeled training data is recommended.\n"
-    )
+    log += "For more accurate results, a supervised machine learning approach with labeled training data is recommended.\n"
 
     return log
 
 
-def quantify_and_cluster_cell_motility(image_sequence_path, output_dir="./results", num_clusters=3):
+def quantify_and_cluster_cell_motility(
+    image_sequence_path, output_dir="./results", num_clusters=3
+):
     """Quantify cell motility features from time-lapse microscopy images and cluster cells based on motility patterns.
 
     Parameters
@@ -189,17 +195,25 @@ def quantify_and_cluster_cell_motility(image_sequence_path, output_dir="./result
 
     # Step 1: Load image sequence
     image_files = sorted(
-        [f for f in os.listdir(image_sequence_path) if f.endswith((".tif", ".tiff", ".png", ".jpg", ".jpeg"))]
+        [
+            f
+            for f in os.listdir(image_sequence_path)
+            if f.endswith((".tif", ".tiff", ".png", ".jpg", ".jpeg"))
+        ],
     )
 
     if len(image_files) < 2:
         return "Error: Insufficient images found. At least 2 time points are required."
 
     # Step 2: Initialize cell tracking
-    first_image = cv2.imread(os.path.join(image_sequence_path, image_files[0]), cv2.IMREAD_GRAYSCALE)
+    first_image = cv2.imread(
+        os.path.join(image_sequence_path, image_files[0]), cv2.IMREAD_GRAYSCALE
+    )
 
     # Simple cell detection using thresholding and contour detection
-    _, binary = cv2.threshold(first_image, 127, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    _, binary = cv2.threshold(
+        first_image, 127, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
+    )
     contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     # Extract cell centroids from first frame
@@ -214,9 +228,13 @@ def quantify_and_cluster_cell_motility(image_sequence_path, output_dir="./result
 
     # Step 3: Track cells across frames
     for frame_idx, img_file in enumerate(image_files[1:], 1):
-        img = cv2.imread(os.path.join(image_sequence_path, img_file), cv2.IMREAD_GRAYSCALE)
+        img = cv2.imread(
+            os.path.join(image_sequence_path, img_file), cv2.IMREAD_GRAYSCALE
+        )
         _, binary = cv2.threshold(img, 127, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv2.findContours(
+            binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        )
 
         # Get current frame centroids
         current_centroids = []
@@ -230,13 +248,16 @@ def quantify_and_cluster_cell_motility(image_sequence_path, output_dir="./result
 
         # Match cells with nearest centroids in current frame
         for cell in cells:
-            if len(cell["positions"]) == frame_idx:  # Only track cells found in previous frame
+            if (
+                len(cell["positions"]) == frame_idx
+            ):  # Only track cells found in previous frame
                 prev_pos = cell["positions"][-1]
 
                 if current_centroids:
                     # Calculate distances to all current centroids
                     distances = [
-                        np.sqrt((prev_pos[0] - c[0]) ** 2 + (prev_pos[1] - c[1]) ** 2) for c in current_centroids
+                        np.sqrt((prev_pos[0] - c[0]) ** 2 + (prev_pos[1] - c[1]) ** 2)
+                        for c in current_centroids
                     ]
                     min_idx = np.argmin(distances)
 
@@ -259,7 +280,9 @@ def quantify_and_cluster_cell_motility(image_sequence_path, output_dir="./result
         for i in range(1, len(cell["positions"])):
             prev_pos = cell["positions"][i - 1]
             curr_pos = cell["positions"][i]
-            displacement = np.sqrt((curr_pos[0] - prev_pos[0]) ** 2 + (curr_pos[1] - prev_pos[1]) ** 2)
+            displacement = np.sqrt(
+                (curr_pos[0] - prev_pos[0]) ** 2 + (curr_pos[1] - prev_pos[1]) ** 2
+            )
             displacements.append(displacement)
 
         # Calculate speed (pixels per frame)
@@ -268,16 +291,23 @@ def quantify_and_cluster_cell_motility(image_sequence_path, output_dir="./result
         # Calculate directionality (displacement from start to end / total path length)
         start_pos = cell["positions"][0]
         end_pos = cell["positions"][-1]
-        net_displacement = np.sqrt((end_pos[0] - start_pos[0]) ** 2 + (end_pos[1] - start_pos[1]) ** 2)
+        net_displacement = np.sqrt(
+            (end_pos[0] - start_pos[0]) ** 2 + (end_pos[1] - start_pos[1]) ** 2
+        )
         total_path_length = np.sum(displacements)
-        directionality = net_displacement / total_path_length if total_path_length > 0 else 0
+        directionality = (
+            net_displacement / total_path_length if total_path_length > 0 else 0
+        )
 
         # Calculate mean squared displacement
         msd = np.mean(
             [
-                np.sqrt((cell["positions"][i][0] - start_pos[0]) ** 2 + (cell["positions"][i][1] - start_pos[1]) ** 2)
+                np.sqrt(
+                    (cell["positions"][i][0] - start_pos[0]) ** 2
+                    + (cell["positions"][i][1] - start_pos[1]) ** 2
+                )
                 for i in range(1, len(cell["positions"]))
-            ]
+            ],
         )
 
         # Calculate track duration
@@ -291,7 +321,7 @@ def quantify_and_cluster_cell_motility(image_sequence_path, output_dir="./result
                 "msd": msd,
                 "track_duration": duration,
                 "track_length": len(cell["positions"]),
-            }
+            },
         )
 
     # Step 5: Cluster cells based on motility features
@@ -303,7 +333,9 @@ def quantify_and_cluster_cell_motility(image_sequence_path, output_dir="./result
     feature_matrix = feature_df[["avg_speed", "directionality", "msd"]].values
 
     # Normalize features
-    feature_matrix = (feature_matrix - np.mean(feature_matrix, axis=0)) / np.std(feature_matrix, axis=0)
+    feature_matrix = (feature_matrix - np.mean(feature_matrix, axis=0)) / np.std(
+        feature_matrix, axis=0
+    )
 
     # Perform k-means clustering
     kmeans = KMeans(n_clusters=num_clusters, random_state=42)
@@ -323,7 +355,7 @@ def quantify_and_cluster_cell_motility(image_sequence_path, output_dir="./result
             "directionality": ["mean", "std"],
             "msd": ["mean", "std"],
             "cell_id": "count",
-        }
+        },
     )
 
     # Save cluster statistics
@@ -428,7 +460,9 @@ def perform_facs_cell_sorting(
 
         # Validate fluorescence parameter exists in data
         if fluorescence_parameter not in cell_df.columns:
-            raise ValueError(f"Fluorescence parameter '{fluorescence_parameter}' not found in data")
+            raise ValueError(
+                f"Fluorescence parameter '{fluorescence_parameter}' not found in data"
+            )
 
         # Apply gating strategy based on fluorescence thresholds
         log += f"\n## Applying Gating Strategy for {fluorescence_parameter}\n"
@@ -444,7 +478,9 @@ def perform_facs_cell_sorting(
             log += f"Applied maximum threshold of {threshold_max}: {len(cell_df)} cells remaining\n"
 
         # Calculate enrichment statistics
-        enrichment_percent = (len(cell_df) / original_count) * 100 if original_count > 0 else 0
+        enrichment_percent = (
+            (len(cell_df) / original_count) * 100 if original_count > 0 else 0
+        )
         log += "\n## Enrichment Results\n"
         log += f"Original population: {original_count} cells\n"
         log += f"Sorted population: {len(cell_df)} cells\n"
@@ -466,12 +502,15 @@ def perform_facs_cell_sorting(
 
     except Exception as e:
         log += "\n## Error\n"
-        log += f"An error occurred during cell sorting: {str(e)}\n"
+        log += f"An error occurred during cell sorting: {e!s}\n"
         return log
 
 
 def analyze_flow_cytometry_immunophenotyping(
-    fcs_file_path, gating_strategy, compensation_matrix=None, output_dir="./results"
+    fcs_file_path,
+    gating_strategy,
+    compensation_matrix=None,
+    output_dir="./results",
 ):
     """Analyze flow cytometry data to identify and quantify specific cell populations based on surface markers.
 
@@ -501,6 +540,14 @@ def analyze_flow_cytometry_immunophenotyping(
     # Create output directory if it doesn't exist
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
+
+    if not os.path.exists(fcs_file_path):
+        return (
+            "Flow Cytometry Analysis Log\n"
+            "==========================\n"
+            f"Error: FCS file not found at path: {fcs_file_path}\n"
+            "Tip: Provide a path that exists inside the service container (e.g. under /data if mounted).\n"
+        )
 
     # Load the FCS file
     sample = FCMeasurement(ID="Sample", datafile=fcs_file_path)
@@ -536,7 +583,9 @@ def analyze_flow_cytometry_immunophenotyping(
             elif operator == "between":
                 # For 'between', threshold should be a tuple (lower, upper)
                 lower, upper = threshold
-                current_population = current_population.gate(f"{marker} > {lower} and {marker} < {upper}")
+                current_population = current_population.gate(
+                    f"{marker} > {lower} and {marker} < {upper}"
+                )
 
             final_count = len(current_population)
             log += f"  Gate {marker} {operator} {threshold}: {initial_count} → {final_count} events\n"
@@ -564,14 +613,18 @@ def analyze_flow_cytometry_immunophenotyping(
 
     log += "Summary of identified populations:\n"
     for _, row in summary_df.iterrows():
-        log += f"  {row['Population']}: {row['Count']} events ({row['Percentage']:.2f}%)\n"
+        log += (
+            f"  {row['Population']}: {row['Count']} events ({row['Percentage']:.2f}%)\n"
+        )
 
     log += f"\nDetailed results saved to: {summary_file}\n"
 
     return log
 
 
-def analyze_mitochondrial_morphology_and_potential(morphology_image_path, potential_image_path, output_dir="./output"):
+def analyze_mitochondrial_morphology_and_potential(
+    morphology_image_path, potential_image_path, output_dir="./output"
+):
     """Quantifies metrics of mitochondrial morphology and membrane potential from fluorescence microscopy images.
 
     Parameters
@@ -601,7 +654,9 @@ def analyze_mitochondrial_morphology_and_potential(morphology_image_path, potent
     os.makedirs(output_dir, exist_ok=True)
 
     log = []
-    log.append(f"Mitochondrial Analysis - {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    log.append(
+        f"Mitochondrial Analysis - {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+    )
     log.append("=" * 50)
 
     # Load images
@@ -614,7 +669,7 @@ def analyze_mitochondrial_morphology_and_potential(morphology_image_path, potent
         log.append(f"Morphology image shape: {morph_img.shape}")
         log.append(f"Potential image shape: {pot_img.shape}")
     except Exception as e:
-        return f"Error loading images: {str(e)}"
+        return f"Error loading images: {e!s}"
 
     # Convert to grayscale if needed
     if len(morph_img.shape) > 2:
@@ -673,7 +728,11 @@ def analyze_mitochondrial_morphology_and_potential(morphology_image_path, potent
     connectivity = num_junctions / num_branches if num_branches > 0 else 0
 
     # Calculate fragmentation index (inverse of mean object size, normalized)
-    fragmentation = 1 / (mean_size / np.max(object_sizes)) if mean_size > 0 and np.max(object_sizes) > 0 else 0
+    fragmentation = (
+        1 / (mean_size / np.max(object_sizes))
+        if mean_size > 0 and np.max(object_sizes) > 0
+        else 0
+    )
 
     log.append(f"Number of mitochondrial fragments: {num_objects}")
     log.append(f"Number of branches: {num_branches}")
@@ -700,7 +759,12 @@ def analyze_mitochondrial_morphology_and_potential(morphology_image_path, potent
     if np.sum(mito_mask) > 0:
         percentiles = [10, 25, 50, 75, 90]
         pot_percentiles = np.percentile(pot_img[mito_mask], percentiles)
-        percentile_str = ", ".join([f"{p}th: {v:.4f}" for p, v in zip(percentiles, pot_percentiles, strict=False)])
+        percentile_str = ", ".join(
+            [
+                f"{p}th: {v:.4f}"
+                for p, v in zip(percentiles, pot_percentiles, strict=False)
+            ]
+        )
     else:
         percentile_str = "No mitochondrial regions detected"
 

@@ -1,4 +1,8 @@
-def analyze_ddr_network_in_cancer(expression_data_path, mutation_data_path, output_dir="./results"):
+def analyze_ddr_network_in_cancer(
+    expression_data_path,
+    mutation_data_path,
+    output_dir="./results",
+):
     """Analyze DNA Damage Response (DDR) network alterations and dependencies in cancer samples.
 
     This function reconstructs the DDR network from genomic data, identifies disruptions
@@ -101,7 +105,7 @@ def analyze_ddr_network_in_cancer(expression_data_path, mutation_data_path, outp
         research_log += f"- Found {ddr_mut.shape[0]} DDR genes in mutation data\n\n"
 
     except Exception as e:
-        research_log += f"Error in data loading: {str(e)}\n\n"
+        research_log += f"Error in data loading: {e!s}\n\n"
         return research_log
 
     # Step 2: Network reconstruction
@@ -146,7 +150,11 @@ def analyze_ddr_network_in_cancer(expression_data_path, mutation_data_path, outp
         research_log += f"  * {gene}: {centrality:.4f}\n"
 
     # Identify bottleneck genes (high betweenness centrality)
-    bottleneck_genes = sorted(betweenness_centrality.items(), key=lambda x: x[1], reverse=True)[:5]
+    bottleneck_genes = sorted(
+        betweenness_centrality.items(),
+        key=lambda x: x[1],
+        reverse=True,
+    )[:5]
 
     research_log += "- Top 5 bottleneck genes (critical for information flow):\n"
     for gene, centrality in bottleneck_genes:
@@ -154,7 +162,11 @@ def analyze_ddr_network_in_cancer(expression_data_path, mutation_data_path, outp
 
     # Identify frequently mutated DDR genes
     mutation_freq = {node: G.nodes[node]["mutation_freq"] for node in G.nodes()}
-    frequently_mutated = sorted(mutation_freq.items(), key=lambda x: x[1], reverse=True)[:5]
+    frequently_mutated = sorted(
+        mutation_freq.items(),
+        key=lambda x: x[1],
+        reverse=True,
+    )[:5]
 
     research_log += "- Top 5 frequently mutated DDR genes:\n"
     for gene, freq in frequently_mutated:
@@ -180,7 +192,9 @@ def analyze_ddr_network_in_cancer(expression_data_path, mutation_data_path, outp
             research_log += f"  * Sub-pathway {i + 1}: {', '.join(genes)}\n"
 
     except ImportError:
-        research_log += "- Community detection skipped (python-louvain package not installed)\n"
+        research_log += (
+            "- Community detection skipped (python-louvain package not installed)\n"
+        )
 
     # Step 5: Identify disrupted DDR pathways using GSEA
     research_log += "\nSTEP 5: Pathway enrichment analysis of DDR genes\n"
@@ -201,7 +215,10 @@ def analyze_ddr_network_in_cancer(expression_data_path, mutation_data_path, outp
         ddr_terms = [
             term
             for term in enrichr_results.results["Term"]
-            if any(x in term.lower() for x in ["dna repair", "damage", "recombination", "checkpoint"])
+            if any(
+                x in term.lower()
+                for x in ["dna repair", "damage", "recombination", "checkpoint"]
+            )
         ]
 
         if ddr_terms:
@@ -217,14 +234,16 @@ def analyze_ddr_network_in_cancer(expression_data_path, mutation_data_path, outp
         research_log += f"- Full enrichment results saved to: {enrichment_file}\n\n"
 
     except Exception as e:
-        research_log += f"- Pathway enrichment analysis error: {str(e)}\n\n"
+        research_log += f"- Pathway enrichment analysis error: {e!s}\n\n"
 
     # Step 6: Summary of findings
     research_log += "SUMMARY OF FINDINGS\n"
     research_log += "=" * 80 + "\n"
 
     # Key hub genes (potential therapeutic targets)
-    research_log += "1. Key DDR hub genes that may serve as potential therapeutic targets:\n"
+    research_log += (
+        "1. Key DDR hub genes that may serve as potential therapeutic targets:\n"
+    )
     for gene, _ in hub_genes[:3]:
         research_log += f"   - {gene}\n"
 
@@ -250,14 +269,24 @@ def analyze_ddr_network_in_cancer(expression_data_path, mutation_data_path, outp
         if abs(data["correlation"]) > 0.6:  # Strong correlation
             mut_freq1 = G.nodes[gene1]["mutation_freq"]
             mut_freq2 = G.nodes[gene2]["mutation_freq"]
-            if (mut_freq1 > 0.1 and mut_freq2 < 0.05) or (mut_freq2 > 0.1 and mut_freq1 < 0.05):
+            if (mut_freq1 > 0.1 and mut_freq2 < 0.05) or (
+                mut_freq2 > 0.1 and mut_freq1 < 0.05
+            ):
                 if mut_freq1 > mut_freq2:
-                    synthetic_lethality_candidates.append((gene1, gene2, data["correlation"], mut_freq1))
+                    synthetic_lethality_candidates.append(
+                        (gene1, gene2, data["correlation"], mut_freq1),
+                    )
                 else:
-                    synthetic_lethality_candidates.append((gene2, gene1, data["correlation"], mut_freq2))
+                    synthetic_lethality_candidates.append(
+                        (gene2, gene1, data["correlation"], mut_freq2),
+                    )
 
     if synthetic_lethality_candidates:
-        for mutated, target, _, _ in sorted(synthetic_lethality_candidates, key=lambda x: x[3], reverse=True)[:3]:
+        for mutated, target, _, _ in sorted(
+            synthetic_lethality_candidates,
+            key=lambda x: x[3],
+            reverse=True,
+        )[:3]:
             research_log += f"   - {mutated} (frequently mutated) and {target} (potential dependency)\n"
     else:
         research_log += "   - No strong synthetic lethality candidates identified\n"
@@ -288,6 +317,12 @@ def analyze_cell_senescence_and_apoptosis(fcs_file_path):
 
     log = "# Flow Cytometry Analysis of Cell Senescence and Apoptosis\n\n"
 
+    if not os.path.exists(fcs_file_path):
+        log += "## Error\n"
+        log += f"- FCS file not found at path: {fcs_file_path}\n"
+        log += "- Tip: Provide a path that exists inside the service container (e.g. under /data if mounted).\n"
+        return log
+
     try:
         # Step 1: Load the FCS file
         log += "## Step 1: Loading Flow Cytometry Data\n"
@@ -303,8 +338,12 @@ def analyze_cell_senescence_and_apoptosis(fcs_file_path):
 
         # Basic filtering to remove debris based on FSC and SSC
         # Assuming FSC-A and SSC-A are the channel names (adjust if different)
-        fsc_channel = "FSC-A" if "FSC-A" in sample.channel_names else sample.channel_names[0]
-        ssc_channel = "SSC-A" if "SSC-A" in sample.channel_names else sample.channel_names[1]
+        fsc_channel = (
+            "FSC-A" if "FSC-A" in sample.channel_names else sample.channel_names[0]
+        )
+        ssc_channel = (
+            "SSC-A" if "SSC-A" in sample.channel_names else sample.channel_names[1]
+        )
 
         # Filter out debris (low FSC and SSC)
         sample_filtered = sample.gate(f"{fsc_channel} > 10000 and {ssc_channel} > 5000")
@@ -334,10 +373,14 @@ def analyze_cell_senescence_and_apoptosis(fcs_file_path):
         # Determine threshold for SA-β-Gal positivity (using a simple percentile approach)
         # In practice, this would be based on controls or known thresholds
         sa_bgal_threshold = np.percentile(sample_filtered.data[sa_bgal_channel], 80)
-        senescent_cells = sample_filtered.gate(f"{sa_bgal_channel} > {sa_bgal_threshold}")
+        senescent_cells = sample_filtered.gate(
+            f"{sa_bgal_channel} > {sa_bgal_threshold}",
+        )
 
         senescent_percentage = (len(senescent_cells) / len(sample_filtered)) * 100
-        log += f"- Applied threshold at {sa_bgal_threshold:.1f} fluorescence intensity\n"
+        log += (
+            f"- Applied threshold at {sa_bgal_threshold:.1f} fluorescence intensity\n"
+        )
         log += f"- Identified {len(senescent_cells)} senescent cells ({senescent_percentage:.2f}%)\n\n"
 
         # Step 4: Identify apoptotic cells (Annexin V+/7-AAD+)
@@ -350,7 +393,11 @@ def analyze_cell_senescence_and_apoptosis(fcs_file_path):
         for channel in sample_filtered.channel_names:
             if "ANNEXIN" in channel.upper() or "PE" in channel.upper():
                 annexin_channel = channel
-            if "7AAD" in channel.upper() or "AAD" in channel.upper() or "PerCP" in channel.upper():
+            if (
+                "7AAD" in channel.upper()
+                or "AAD" in channel.upper()
+                or "PerCP" in channel.upper()
+            ):
                 aad_channel = channel
 
         if not annexin_channel or not aad_channel:
@@ -359,7 +406,9 @@ def analyze_cell_senescence_and_apoptosis(fcs_file_path):
             fluorescence_channels = [
                 ch
                 for ch in sample_filtered.channel_names
-                if any(x in ch.upper() for x in ["FL", "BL", "FITC", "PE", "APC", "PerCP"])
+                if any(
+                    x in ch.upper() for x in ["FL", "BL", "FITC", "PE", "APC", "PerCP"]
+                )
             ]
             if len(fluorescence_channels) >= 2:
                 if not annexin_channel:
@@ -376,18 +425,20 @@ def analyze_cell_senescence_and_apoptosis(fcs_file_path):
 
         # Early apoptotic: Annexin V+ / 7-AAD-
         early_apoptotic = sample_filtered.gate(
-            f"{annexin_channel} > {annexin_threshold} and {aad_channel} < {aad_threshold}"
+            f"{annexin_channel} > {annexin_threshold} and {aad_channel} < {aad_threshold}",
         )
         early_apoptotic_percentage = (len(early_apoptotic) / len(sample_filtered)) * 100
 
         # Late apoptotic/necrotic: Annexin V+ / 7-AAD+
         late_apoptotic = sample_filtered.gate(
-            f"{annexin_channel} > {annexin_threshold} and {aad_channel} > {aad_threshold}"
+            f"{annexin_channel} > {annexin_threshold} and {aad_channel} > {aad_threshold}",
         )
         late_apoptotic_percentage = (len(late_apoptotic) / len(sample_filtered)) * 100
 
         # Total apoptotic (early + late)
-        total_apoptotic_percentage = early_apoptotic_percentage + late_apoptotic_percentage
+        total_apoptotic_percentage = (
+            early_apoptotic_percentage + late_apoptotic_percentage
+        )
 
         log += f"- Early apoptotic cells (Annexin V+/7-AAD-): {early_apoptotic_percentage:.2f}%\n"
         log += f"- Late apoptotic cells (Annexin V+/7-AAD+): {late_apoptotic_percentage:.2f}%\n"
@@ -402,7 +453,9 @@ def analyze_cell_senescence_and_apoptosis(fcs_file_path):
         log += f"- Total apoptotic cells: {total_apoptotic_percentage:.2f}%\n"
 
         # Save results to CSV file
-        results_file = os.path.splitext(os.path.basename(fcs_file_path))[0] + "_results.csv"
+        results_file = (
+            os.path.splitext(os.path.basename(fcs_file_path))[0] + "_results.csv"
+        )
         with open(results_file, "w") as f:
             f.write("Cell Population,Percentage\n")
             f.write(f"Senescent cells,{senescent_percentage:.2f}\n")
@@ -414,13 +467,17 @@ def analyze_cell_senescence_and_apoptosis(fcs_file_path):
 
     except Exception as e:
         log += "\n## ERROR: An error occurred during analysis\n"
-        log += f"- Error message: {str(e)}\n"
+        log += f"- Error message: {e!s}\n"
 
     return log
 
 
 def detect_and_annotate_somatic_mutations(
-    tumor_bam, normal_bam, reference_genome, output_prefix, snpeff_database="GRCh38.105"
+    tumor_bam,
+    normal_bam,
+    reference_genome,
+    output_prefix,
+    snpeff_database="GRCh38.105",
 ):
     """Detects and annotates somatic mutations in tumor samples compared to matched normal samples.
 
@@ -482,7 +539,7 @@ def detect_and_annotate_somatic_mutations(
         subprocess.run(mutect2_cmd, check=True, capture_output=True)
         log += f"Successfully generated raw VCF: {raw_vcf}\n\n"
     except subprocess.CalledProcessError as e:
-        log += f"Error running Mutect2: {str(e)}\n"
+        log += f"Error running Mutect2: {e!s}\n"
         return log
 
     # Step 2: Filter somatic calls
@@ -505,7 +562,7 @@ def detect_and_annotate_somatic_mutations(
         subprocess.run(filter_cmd, check=True, capture_output=True)
         log += f"Successfully filtered variants: {filtered_vcf}\n\n"
     except subprocess.CalledProcessError as e:
-        log += f"Error filtering variants: {str(e)}\n"
+        log += f"Error filtering variants: {e!s}\n"
         return log
 
     # Step 3: Annotate variants with SnpEff
@@ -520,7 +577,7 @@ def detect_and_annotate_somatic_mutations(
         subprocess.run(" ".join(snpeff_cmd), shell=True, check=True)
         log += f"Successfully annotated variants: {annotated_vcf}\n\n"
     except subprocess.CalledProcessError as e:
-        log += f"Error annotating variants: {str(e)}\n"
+        log += f"Error annotating variants: {e!s}\n"
         return log
 
     # Step 4: Generate summary statistics
@@ -533,14 +590,16 @@ def detect_and_annotate_somatic_mutations(
         total_variants = subprocess.check_output(count_cmd, shell=True).decode().strip()
         log += f"Total somatic variants detected: {total_variants}\n"
     except subprocess.CalledProcessError as e:
-        log += f"Error counting variants: {str(e)}\n"
+        log += f"Error counting variants: {e!s}\n"
 
     # Count by variant type
     log += "Variant types:\n"
     for variant_type in ["SNP", "INS", "DEL"]:
         count_type_cmd = f"grep -v '^#' {annotated_vcf} | grep '{variant_type}' | wc -l"
         try:
-            type_count = subprocess.check_output(count_type_cmd, shell=True).decode().strip()
+            type_count = (
+                subprocess.check_output(count_type_cmd, shell=True).decode().strip()
+            )
             log += f"- {variant_type}: {type_count}\n"
         except subprocess.CalledProcessError:
             log += f"- {variant_type}: Error counting\n"
@@ -548,7 +607,9 @@ def detect_and_annotate_somatic_mutations(
     # Count high impact variants
     high_impact_cmd = f"grep -v '^#' {annotated_vcf} | grep 'HIGH' | wc -l"
     try:
-        high_impact = subprocess.check_output(high_impact_cmd, shell=True).decode().strip()
+        high_impact = (
+            subprocess.check_output(high_impact_cmd, shell=True).decode().strip()
+        )
         log += f"High impact variants: {high_impact}\n\n"
     except subprocess.CalledProcessError:
         log += "High impact variants: Error counting\n\n"
@@ -602,6 +663,7 @@ def detect_and_characterize_structural_variations(
     """
     import datetime
     import os
+    import shutil
     import subprocess
 
     # Create output directory if it doesn't exist
@@ -615,6 +677,35 @@ def detect_and_characterize_structural_variations(
     log.append(f"Reference genome: {reference_genome_path}")
     log.append(f"Output directory: {output_dir}")
     log.append("\n")
+
+    # Basic validation and dependency checks (tool relies on external CLIs)
+    missing_files = [
+        path
+        for path in [bam_file_path, reference_genome_path]
+        if path and not os.path.exists(path)
+    ]
+    if missing_files:
+        log.append("### Error")
+        for path in missing_files:
+            log.append(f"- Input file not found: {path}")
+        log.append(
+            "- Tip: Provide paths that exist inside the service container (e.g. under /data if mounted).",
+        )
+        return "\n".join(log)
+
+    required_bins = ["samtools", "bcftools", "lumpyexpress", "extractSplitReads_BwaMem"]
+    missing_bins = [b for b in required_bins if shutil.which(b) is None]
+    if missing_bins:
+        log.append("### Error")
+        log.append("- Missing required command-line tools: " + ", ".join(missing_bins))
+        if "lumpyexpress" in missing_bins:
+            log.append(
+                "- Note: LUMPY (lumpy-sv) is not installed in the default Biomni image because the bioconda package requires Python 2.7.",
+            )
+        log.append(
+            "- Tip: Run this tool in an environment/container that provides these CLIs, or install them separately and ensure they are on PATH.",
+        )
+        return "\n".join(log)
 
     # Step 1: Extract discordant read-pairs and split-reads for LUMPY
     log.append("### Step 1: Extracting discordant read-pairs and split-reads")
@@ -639,27 +730,12 @@ def detect_and_characterize_structural_variations(
         )
 
         # Extract split reads
-        subprocess.run(
-            [
-                "samtools",
-                "view",
-                "-h",
-                bam_file_path,
-                "|",
-                "extractSplitReads_BwaMem",
-                "-i",
-                "stdin",
-                "|",
-                "samtools",
-                "view",
-                "-Sb",
-                "-",
-                ">",
-                split_bam,
-            ],
-            shell=True,
-            check=True,
+        split_cmd = (
+            f"samtools view -h {bam_file_path} "
+            f"| extractSplitReads_BwaMem -i stdin "
+            f"| samtools view -Sb - > {split_bam}"
         )
+        subprocess.run(split_cmd, shell=True, check=True)
 
         log.append("Successfully extracted discordant read-pairs and split-reads")
     except subprocess.CalledProcessError as e:
@@ -805,7 +881,9 @@ def detect_and_characterize_structural_variations(
     log.append(f"Total SVs detected: {sum(sv_counts.values())}")
     log.append("SV types breakdown:")
     for sv_type, count in sv_counts.items():
-        log.append(f"- {sv_type}: {count} ({count / sum(sv_counts.values()) * 100:.1f}%)")
+        log.append(
+            f"- {sv_type}: {count} ({count / sum(sv_counts.values()) * 100:.1f}%)",
+        )
 
     log.append("\nFiles generated:")
     log.append(f"- Raw SV calls: {vcf_output}")
@@ -813,7 +891,9 @@ def detect_and_characterize_structural_variations(
     log.append(f"- Annotated SVs: {annotated_vcf}")
     log.append(f"- Summary report: {summary_file}")
 
-    log.append(f"\nAnalysis completed at: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    log.append(
+        f"\nAnalysis completed at: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+    )
 
     return "\n".join(log)
 
@@ -857,7 +937,9 @@ def perform_gene_expression_nmf_analysis(
 
     # Start research log
     log = []
-    log.append(f"NMF GENE EXPRESSION ANALYSIS - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    log.append(
+        f"NMF GENE EXPRESSION ANALYSIS - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+    )
     log.append(f"Parameters: n_components={n_components}, normalize={normalize}")
 
     # Load expression data from file
@@ -867,12 +949,16 @@ def perform_gene_expression_nmf_analysis(
         elif expression_data_path.endswith((".tsv", ".txt")):
             expression_data = pd.read_csv(expression_data_path, sep="\t", index_col=0)
         else:
-            log.append("ERROR: Unsupported file format. Please provide a CSV or TSV file.")
+            log.append(
+                "ERROR: Unsupported file format. Please provide a CSV or TSV file.",
+            )
             return "\n".join(log)
 
         log.append(f"Successfully loaded expression data from {expression_data_path}")
     except Exception as e:
-        log.append(f"ERROR: Failed to load expression data from {expression_data_path}. Error: {str(e)}")
+        log.append(
+            f"ERROR: Failed to load expression data from {expression_data_path}. Error: {e!s}",
+        )
         return "\n".join(log)
 
     # Extract gene and sample information
@@ -883,7 +969,9 @@ def perform_gene_expression_nmf_analysis(
 
     # Check for non-negative values
     if np.any(X < 0):
-        log.append("WARNING: Negative values found in expression data. Converting to absolute values.")
+        log.append(
+            "WARNING: Negative values found in expression data. Converting to absolute values.",
+        )
         X = np.abs(X)
 
     # Normalize data if requested
@@ -916,12 +1004,20 @@ def perform_gene_expression_nmf_analysis(
 
         # Save metagenes (W matrix)
         metagenes_file = os.path.join(output_dir, "metagenes.csv")
-        pd.DataFrame(W, index=genes, columns=[f"Metagene_{i + 1}" for i in range(n_components)]).to_csv(metagenes_file)
+        pd.DataFrame(
+            W,
+            index=genes,
+            columns=[f"Metagene_{i + 1}" for i in range(n_components)],
+        ).to_csv(metagenes_file)
         log.append(f"Saved metagenes to {metagenes_file}")
 
         # Save sample weights (H matrix)
         weights_file = os.path.join(output_dir, "sample_weights.csv")
-        pd.DataFrame(H, index=[f"Metagene_{i + 1}" for i in range(n_components)], columns=samples).to_csv(weights_file)
+        pd.DataFrame(
+            H,
+            index=[f"Metagene_{i + 1}" for i in range(n_components)],
+            columns=samples,
+        ).to_csv(weights_file)
         log.append(f"Saved sample weights to {weights_file}")
 
         top_genes_file = os.path.join(output_dir, "top_genes_per_metagene.csv")
@@ -935,16 +1031,22 @@ def perform_gene_expression_nmf_analysis(
         log.append(f"Saved top genes per metagene to {top_genes_file}")
 
     except Exception as e:
-        log.append(f"ERROR: NMF failed with error: {str(e)}")
+        log.append(f"ERROR: NMF failed with error: {e!s}")
         return "\n".join(log)
 
     log.append("\nSUMMARY:")
-    log.append(f"- Successfully extracted {n_components} metagenes from {X.shape[0]} genes across {X.shape[1]} samples")
+    log.append(
+        f"- Successfully extracted {n_components} metagenes from {X.shape[0]} genes across {X.shape[1]} samples",
+    )
     log.append(f"- Results saved to: {output_dir}")
-    log.append("- Files generated: metagenes.csv, sample_weights.csv, top_genes_per_metagene.csv")
+    log.append(
+        "- Files generated: metagenes.csv, sample_weights.csv, top_genes_per_metagene.csv",
+    )
     log.append("\nNEXT STEPS:")
     log.append("- Analyze the metagenes to identify biological pathways")
-    log.append("- Cluster samples based on metagene weights to identify potential tumor subtypes")
+    log.append(
+        "- Cluster samples based on metagene weights to identify potential tumor subtypes",
+    )
     log.append("- Correlate subtypes with clinical outcomes if available")
 
     return "\n".join(log)
@@ -995,6 +1097,7 @@ def analyze_copy_number_purity_ploidy_and_focal_events(
     -------
     str
         Research log summarizing steps, tool executions, and findings.
+
     """
     import datetime
     import math
@@ -1034,7 +1137,10 @@ def analyze_copy_number_purity_ploidy_and_focal_events(
     if not cnvkit_path:
         try:
             result = subprocess.run(
-                ["conda", "run", "-n", "biomni_e1", "which", "cnvkit.py"], capture_output=True, text=True, check=True
+                ["conda", "run", "-n", "biomni_e1", "which", "cnvkit.py"],
+                capture_output=True,
+                text=True,
+                check=True,
             )
             if result.returncode == 0 and result.stdout.strip():
                 cnvkit_path = "cnvkit.py"  # Will use via conda run
@@ -1060,8 +1166,12 @@ def analyze_copy_number_purity_ploidy_and_focal_events(
             pass
 
     if not cnvkit_path:
-        log.append("- CNVkit not detected in current PATH, biomni_e1, or bio_env_py310 environment")
-        log.append("- Install manually (e.g., pip install cnvkit==0.9.11) or run setup.sh")
+        log.append(
+            "- CNVkit not detected in current PATH, biomni_e1, or bio_env_py310 environment",
+        )
+        log.append(
+            "- Install manually (e.g., pip install cnvkit==0.9.11) or run setup.sh",
+        )
         log.append("- Workflow will exit without CNVkit")
         return "\n".join(log)
 
@@ -1072,7 +1182,15 @@ def analyze_copy_number_purity_ploidy_and_focal_events(
     env_prefix = ["conda", "run", "-n", "biomni_e1"] if use_conda_env else []
 
     # CNVkit batch command
-    batch_cmd = env_prefix + [cnvkit_path, "batch", tumor_bam, "-d", output_dir, "-f", reference_genome]
+    batch_cmd = env_prefix + [
+        cnvkit_path,
+        "batch",
+        tumor_bam,
+        "-d",
+        output_dir,
+        "-f",
+        reference_genome,
+    ]
     if normal_bam:
         batch_cmd.extend(["-n", normal_bam])
     if targets_bed:
@@ -1086,7 +1204,9 @@ def analyze_copy_number_purity_ploidy_and_focal_events(
         subprocess.run(batch_cmd, check=True, capture_output=True)
         log.append("- CNVkit batch completed successfully")
     except subprocess.CalledProcessError as e:
-        log.append(f"- WARNING: CNVkit batch failed: {e}. Proceeding with limited downstream analyses")
+        log.append(
+            f"- WARNING: CNVkit batch failed: {e}. Proceeding with limited downstream analyses",
+        )
 
     # Check for CNVkit output and run call command
     cnvkit_cns = os.path.join(output_dir, f"{sample_name}.cns")
@@ -1148,17 +1268,27 @@ def analyze_copy_number_purity_ploidy_and_focal_events(
                 # Weighted average absolute copy ratio -> approximate ploidy baseline
                 # Convert log2 ratio to absolute copy ratio (assuming diploid baseline = 2)
                 seg_df["abs_cn"] = 2 * (2 ** seg_df[log2_col])
-                weighted_mean_cn = (seg_df["abs_cn"] * seg_df["seg_length"]).sum() / seg_df["seg_length"].sum()
+                weighted_mean_cn = (
+                    seg_df["abs_cn"] * seg_df["seg_length"]
+                ).sum() / seg_df["seg_length"].sum()
                 ploidy_est = weighted_mean_cn
                 # Approximate purity: higher variance in log2 ratios suggests purity; naive formula
-                mad_log2 = statistics.median([abs(x) for x in seg_df[log2_col] if not math.isnan(x)])
+                mad_log2 = statistics.median(
+                    [abs(x) for x in seg_df[log2_col] if not math.isnan(x)],
+                )
                 purity_est = min(1.0, max(0.2, 1 - mad_log2 / 1.5))  # heuristic clamp
                 log.append(f"- Estimated ploidy (weighted mean CN): {ploidy_est:.2f}")
-                log.append(f"- Estimated purity (heuristic from segmentation dispersion): {purity_est:.2f}")
+                log.append(
+                    f"- Estimated purity (heuristic from segmentation dispersion): {purity_est:.2f}",
+                )
             else:
-                log.append("- WARNING: Could not identify necessary columns for purity/ploidy estimation")
+                log.append(
+                    "- WARNING: Could not identify necessary columns for purity/ploidy estimation",
+                )
         else:
-            log.append("- No CNVkit segmentation available for purity/ploidy estimation")
+            log.append(
+                "- No CNVkit segmentation available for purity/ploidy estimation",
+            )
     except Exception as e:
         log.append(f"- ERROR: Purity/ploidy estimation failed: {e}")
 
@@ -1171,30 +1301,45 @@ def analyze_copy_number_purity_ploidy_and_focal_events(
         if seg_df is not None and "seg_length" in seg_df:
             # Count large-scale transitions (LST proxy: adjacent segments >10 Mb with log2 change >0.2)
             seg_df_sorted = seg_df.sort_values(
-                by=[c for c in seg_df.columns if c.startswith("chrom") or c == "chrom" or c == "chromosome"][0]
-                if any(c.startswith("chrom") for c in seg_df.columns)
-                else seg_df.columns[0]
+                by=(
+                    [
+                        c
+                        for c in seg_df.columns
+                        if c.startswith("chrom") or c == "chrom" or c == "chromosome"
+                    ][0]
+                    if any(c.startswith("chrom") for c in seg_df.columns)
+                    else seg_df.columns[0]
+                ),
             )
             lst_count = 0
             prev = None
             for _, row in seg_df_sorted.iterrows():
                 if prev is not None:
-                    if row["seg_length"] >= 10_000_000 and prev["seg_length"] >= 10_000_000:
+                    if (
+                        row["seg_length"] >= 10_000_000
+                        and prev["seg_length"] >= 10_000_000
+                    ):
                         if log2_col and abs(row[log2_col] - prev[log2_col]) > 0.2:
                             lst_count += 1
                 prev = row
             hrd_metrics["LST_like"] = lst_count
             # HRD-LOH proxy: segments with log2 < -0.3 and length >15 Mb
             if log2_col:
-                hrd_loh = ((seg_df[log2_col] < -0.3) & (seg_df["seg_length"] > 15_000_000)).sum()
+                hrd_loh = (
+                    (seg_df[log2_col] < -0.3) & (seg_df["seg_length"] > 15_000_000)
+                ).sum()
                 hrd_metrics["HRD_LOH_like"] = int(hrd_loh)
             # Telomeric AI proxy omitted (needs allele-specific data)
             hrd_score = sum(hrd_metrics.values())
             hrd_metrics["Simplified_HRD_score"] = hrd_score
             log.append(f"- LST-like events: {hrd_metrics['LST_like']}")
             log.append(f"- HRD-LOH-like events: {hrd_metrics['HRD_LOH_like']}")
-            log.append(f"- Simplified composite HRD score: {hrd_metrics['Simplified_HRD_score']}")
-            log.append("- NOTE: For clinical/research use, apply scarHRD or HRDetect with allele-specific data")
+            log.append(
+                f"- Simplified composite HRD score: {hrd_metrics['Simplified_HRD_score']}",
+            )
+            log.append(
+                "- NOTE: For clinical/research use, apply scarHRD or HRDetect with allele-specific data",
+            )
         else:
             log.append("- Segmentation not available; HRD approximation skipped")
     except Exception as e:
@@ -1207,14 +1352,25 @@ def analyze_copy_number_purity_ploidy_and_focal_events(
     focal_events = []
     try:
         if seg_df is not None and gene_bed and os.path.exists(gene_bed):
-            genes_df = pd.read_csv(gene_bed, sep="\t", header=None, names=["chrom", "start", "end", "gene"])
+            genes_df = pd.read_csv(
+                gene_bed,
+                sep="\t",
+                header=None,
+                names=["chrom", "start", "end", "gene"],
+            )
 
             # Normalize chromosome naming
             def norm_chr(x):
                 return x.replace("chr", "") if isinstance(x, str) else x
 
             seg_df["chr_norm"] = (
-                seg_df[[c for c in seg_df.columns if c in ["chrom", "chromosome", "chr"]][0]].astype(str).map(norm_chr)
+                seg_df[
+                    [c for c in seg_df.columns if c in ["chrom", "chromosome", "chr"]][
+                        0
+                    ]
+                ]
+                .astype(str)
+                .map(norm_chr)
             )
             genes_df["chr_norm"] = genes_df["chrom"].astype(str).map(norm_chr)
             for gene in focal_genes:
@@ -1233,7 +1389,10 @@ def analyze_copy_number_purity_ploidy_and_focal_events(
                     r_end = r["end"]
                     r_start = r["start"]
                     overlaps["ov_len"] = overlaps.apply(
-                        lambda row, r_end=r_end, r_start=r_start: min(row[end_col], r_end)
+                        lambda row, r_end=r_end, r_start=r_start: min(
+                            row[end_col],
+                            r_end,
+                        )
                         - max(row[start_col], r_start),
                         axis=1,
                     )
@@ -1251,11 +1410,10 @@ def analyze_copy_number_purity_ploidy_and_focal_events(
                     log.append(f"- {gene}: {status} (log2={l2:.2f})")
             else:
                 log.append("- No focal events meeting thresholds in target genes")
+        elif not gene_bed:
+            log.append("- Skipped: gene_bed not provided")
         else:
-            if not gene_bed:
-                log.append("- Skipped: gene_bed not provided")
-            else:
-                log.append("- Skipped: gene_bed file not found or segmentation unavailable")
+            log.append("- Skipped: gene_bed file not found or segmentation unavailable")
     except Exception as e:
         log.append(f"- ERROR: Focal event detection failed: {e}")
 
@@ -1278,15 +1436,25 @@ def analyze_copy_number_purity_ploidy_and_focal_events(
     if focal_events:
         focal_file = os.path.join(output_dir, f"{sample_name}_focal_events.tsv")
         try:
-            pd.DataFrame(focal_events, columns=["Gene", "Event", "Log2"]).to_csv(focal_file, sep="\t", index=False)
+            pd.DataFrame(focal_events, columns=["Gene", "Event", "Log2"]).to_csv(
+                focal_file,
+                sep="\t",
+                index=False,
+            )
             log.append(f"- Saved focal events: {focal_file}")
         except Exception as e:
             log.append(f"- WARNING: Could not save focal events file: {e}")
 
     log.append("\nNEXT STEPS:")
-    log.append("- For improved purity/ploidy estimation, consider ABSOLUTE, FACETS, PureCN, or Sequenza")
-    log.append("- For validated HRD scoring, use scarHRD or HRDetect with allele-specific data")
-    log.append("- Integrate CN events with expression data to assess driver gene activation/dosage")
+    log.append(
+        "- For improved purity/ploidy estimation, consider ABSOLUTE, FACETS, PureCN, or Sequenza",
+    )
+    log.append(
+        "- For validated HRD scoring, use scarHRD or HRDetect with allele-specific data",
+    )
+    log.append(
+        "- Integrate CN events with expression data to assess driver gene activation/dosage",
+    )
     log.append("- Visualize CNV profiles using CNVkit's built-in plotting functions")
 
     return "\n".join(log)

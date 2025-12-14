@@ -31,6 +31,7 @@ dependencies:
   - msprime
   - simpleitk
   - nibabel
+  - scholarly
   - muscle
   # (Torch moved to extras to avoid solver failures in minimal base)
   # Jupyter kernel minimal (optional to remove in production)

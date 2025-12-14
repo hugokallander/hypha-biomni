@@ -246,7 +246,9 @@ def analyze_bacterial_growth_curve(time_points, od_values, strain_name, output_d
         doubling_time = log(2) / r_fit
 
         # Calculate lag phase (approximation)
-        lag_phase = (np.log((k_fit / n0_fit) - 1) - np.log((k_fit / (0.05 * k_fit)) - 1)) / r_fit
+        lag_phase = (
+            np.log((k_fit / n0_fit) - 1) - np.log((k_fit / (0.05 * k_fit)) - 1)
+        ) / r_fit
         lag_phase = max(0, lag_phase)  # Ensure non-negative
 
         # Generate fitted curve for plotting
@@ -264,7 +266,9 @@ def analyze_bacterial_growth_curve(time_points, od_values, strain_name, output_d
         plt.legend()
 
         # Save the plot
-        plot_filename = os.path.join(output_dir, f"{strain_name.replace(' ', '_')}_growth_curve.png")
+        plot_filename = os.path.join(
+            output_dir, f"{strain_name.replace(' ', '_')}_growth_curve.png"
+        )
         plt.savefig(plot_filename)
         plt.close()
 
@@ -343,7 +347,9 @@ def isolate_purify_immune_cells(
 
     # Initialize research log
     log = []
-    log.append(f"CELL ISOLATION AND PURIFICATION LOG - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    log.append(
+        f"CELL ISOLATION AND PURIFICATION LOG - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+    )
     log.append(f"Tissue type: {tissue_type}")
     log.append(f"Target cell population: {target_cell_type}")
     log.append("-" * 50)
@@ -361,15 +367,21 @@ def isolate_purify_immune_cells(
 
     # Step 1: Tissue preparation
     log.append("1. TISSUE PREPARATION")
-    log.append(f"   - {tissue_type.capitalize()} tissue was collected and placed in cold PBS")
-    log.append("   - Tissue was minced into small pieces (1-2 mm) using sterile scissors")
+    log.append(
+        f"   - {tissue_type.capitalize()} tissue was collected and placed in cold PBS"
+    )
+    log.append(
+        "   - Tissue was minced into small pieces (1-2 mm) using sterile scissors"
+    )
 
     # Step 2: Enzymatic digestion
     log.append("\n2. ENZYMATIC DIGESTION")
     log.append(
-        f"   - Tissue fragments were incubated in {enzyme_type} solution at 37°C for {digestion_time_min} minutes"
+        f"   - Tissue fragments were incubated in {enzyme_type} solution at 37°C for {digestion_time_min} minutes",
     )
-    log.append("   - Gentle agitation was applied every 15 minutes to enhance digestion")
+    log.append(
+        "   - Gentle agitation was applied every 15 minutes to enhance digestion"
+    )
 
     # Simulate cell count after digestion
     initial_cell_count = np.random.randint(1e6, 1e7)
@@ -378,7 +390,9 @@ def isolate_purify_immune_cells(
     # Step 3: Filtration/Cell straining
     log.append("\n3. FILTRATION/CELL STRAINING")
     log.append("   - Cell suspension was filtered through a 70 μm cell strainer")
-    log.append("   - Additional washing with PBS was performed to maximize cell recovery")
+    log.append(
+        "   - Additional washing with PBS was performed to maximize cell recovery"
+    )
 
     # Simulate cell count after filtration
     post_filtration_count = int(initial_cell_count * np.random.uniform(0.7, 0.9))
@@ -387,7 +401,9 @@ def isolate_purify_immune_cells(
     # Step 4: Density gradient centrifugation
     log.append("\n4. DENSITY GRADIENT CENTRIFUGATION")
     log.append("   - Cell suspension was carefully layered over Ficoll-Paque medium")
-    log.append("   - Centrifugation was performed at 400 × g for 30 minutes at room temperature")
+    log.append(
+        "   - Centrifugation was performed at 400 × g for 30 minutes at room temperature"
+    )
     log.append("   - The interface layer containing mononuclear cells was collected")
 
     # Simulate cell count after density gradient
@@ -397,8 +413,12 @@ def isolate_purify_immune_cells(
     # Step 5: Magnetic-assisted cell sorting (MACS)
     log.append("\n5. MAGNETIC-ASSISTED CELL SORTING (MACS)")
     log.append(f"   - Cells were labeled with anti-{macs_antibody} magnetic microbeads")
-    log.append("   - Labeled cell suspension was passed through a MACS column in a magnetic field")
-    log.append(f"   - {target_cell_type.capitalize()} were collected based on their binding to the magnetic beads")
+    log.append(
+        "   - Labeled cell suspension was passed through a MACS column in a magnetic field"
+    )
+    log.append(
+        f"   - {target_cell_type.capitalize()} were collected based on their binding to the magnetic beads"
+    )
 
     # Simulate final purified cell count
     final_cell_count = int(post_gradient_count * np.random.uniform(0.1, 0.3))
@@ -446,8 +466,7 @@ def isolate_purify_immune_cells(
 
 
 def estimate_cell_cycle_phase_durations(flow_cytometry_data, initial_estimates):
-    """
-    Estimate cell cycle phase durations using dual-nucleoside pulse labeling data and mathematical modeling.
+    """Estimate cell cycle phase durations using dual-nucleoside pulse labeling data and mathematical modeling.
 
     Parameters
     ----------
@@ -477,8 +496,8 @@ def estimate_cell_cycle_phase_durations(flow_cytometry_data, initial_estimates):
     -------
     str
         Research log summarizing the cell cycle phase duration estimation process and results.
-    """
 
+    """
     import time
 
     import numpy as np
@@ -491,9 +510,7 @@ def estimate_cell_cycle_phase_durations(flow_cytometry_data, initial_estimates):
     # Log input data summary
     log += "## Input Data Summary\n"
     log += f"- Number of time points: {len(flow_cytometry_data['time_points'])}\n"
-    log += (
-        f"- Time range: {min(flow_cytometry_data['time_points'])} to {max(flow_cytometry_data['time_points'])} hours\n"
-    )
+    log += f"- Time range: {min(flow_cytometry_data['time_points'])} to {max(flow_cytometry_data['time_points'])} hours\n"
     log += f"- Initial estimates: G1={initial_estimates['g1_duration']}h, S={initial_estimates['s_duration']}h, "
     log += f"G2/M={initial_estimates['g2m_duration']}h, Death rate={initial_estimates['death_rate']}\n\n"
 
@@ -512,13 +529,25 @@ def estimate_cell_cycle_phase_durations(flow_cytometry_data, initial_estimates):
 
         # Calculate error between simulated and experimental data
         edu_error = np.sum(
-            (np.array(simulated_results["edu_positive"]) - np.array(flow_cytometry_data["edu_positive"])) ** 2
+            (
+                np.array(simulated_results["edu_positive"])
+                - np.array(flow_cytometry_data["edu_positive"])
+            )
+            ** 2,
         )
         brdu_error = np.sum(
-            (np.array(simulated_results["brdu_positive"]) - np.array(flow_cytometry_data["brdu_positive"])) ** 2
+            (
+                np.array(simulated_results["brdu_positive"])
+                - np.array(flow_cytometry_data["brdu_positive"])
+            )
+            ** 2,
         )
         double_error = np.sum(
-            (np.array(simulated_results["double_positive"]) - np.array(flow_cytometry_data["double_positive"])) ** 2
+            (
+                np.array(simulated_results["double_positive"])
+                - np.array(flow_cytometry_data["double_positive"])
+            )
+            ** 2,
         )
 
         # Total error
@@ -526,7 +555,9 @@ def estimate_cell_cycle_phase_durations(flow_cytometry_data, initial_estimates):
         return total_error
 
     # Function to simulate cell population dynamics
-    def simulate_cell_population(time_points, g1_duration, s_duration, g2m_duration, death_rate):
+    def simulate_cell_population(
+        time_points, g1_duration, s_duration, g2m_duration, death_rate
+    ):
         # Simple simulation of cell populations based on ODE model
         # This is a simplified version - a real implementation would use differential equations
 
@@ -548,7 +579,9 @@ def estimate_cell_cycle_phase_durations(flow_cytometry_data, initial_estimates):
             # Simple model for EdU and BrdU incorporation
             edu_pos = s_fraction * np.exp(-death_rate * t)
             brdu_pos = s_fraction * (1 - np.exp(-t / s_duration))
-            double_pos = s_fraction * np.exp(-death_rate * t) * (1 - np.exp(-t / s_duration))
+            double_pos = (
+                s_fraction * np.exp(-death_rate * t) * (1 - np.exp(-t / s_duration))
+            )
 
             # Adjust values to be realistic
             edu_pos = min(edu_pos, 1.0) * 100  # Convert to percentage
@@ -581,7 +614,9 @@ def estimate_cell_cycle_phase_durations(flow_cytometry_data, initial_estimates):
 
     # Run optimization
     optimization_start = time.time()
-    result = optimize.minimize(objective_function, initial_params, method="L-BFGS-B", bounds=bounds)
+    result = optimize.minimize(
+        objective_function, initial_params, method="L-BFGS-B", bounds=bounds
+    )
     optimization_time = time.time() - optimization_start
 
     # Extract optimized parameters
@@ -606,11 +641,11 @@ def estimate_cell_cycle_phase_durations(flow_cytometry_data, initial_estimates):
     # Compare with initial estimates
     log += "## Comparison with Initial Estimates\n"
     log += f"- G1 phase: {optimized_g1:.2f}h (initial: {initial_estimates['g1_duration']}h, "
-    log += (
-        f"change: {(optimized_g1 - initial_estimates['g1_duration']) / initial_estimates['g1_duration'] * 100:.1f}%)\n"
-    )
+    log += f"change: {(optimized_g1 - initial_estimates['g1_duration']) / initial_estimates['g1_duration'] * 100:.1f}%)\n"
 
-    log += f"- S phase: {optimized_s:.2f}h (initial: {initial_estimates['s_duration']}h, "
+    log += (
+        f"- S phase: {optimized_s:.2f}h (initial: {initial_estimates['s_duration']}h, "
+    )
     log += f"change: {(optimized_s - initial_estimates['s_duration']) / initial_estimates['s_duration'] * 100:.1f}%)\n"
 
     log += f"- G2/M phase: {optimized_g2m:.2f}h (initial: {initial_estimates['g2m_duration']}h, "
@@ -671,25 +706,31 @@ def track_immune_cells_under_flow(
     log += "## Data Loading\n"
     if os.path.isdir(image_sequence_path):
         image_files = sorted(
-            [f for f in os.listdir(image_sequence_path) if f.endswith((".png", ".jpg", ".tif", ".tiff"))]
+            [
+                f
+                for f in os.listdir(image_sequence_path)
+                if f.endswith((".png", ".jpg", ".tif", ".tiff"))
+            ],
         )
         log += f"- Loaded {len(image_files)} images from directory\n"
 
         # Read first image to get dimensions
-        first_img = cv2.imread(os.path.join(image_sequence_path, image_files[0]), cv2.IMREAD_GRAYSCALE)
+        first_img = cv2.imread(
+            os.path.join(image_sequence_path, image_files[0]), cv2.IMREAD_GRAYSCALE
+        )
 
         # Handle case where image loading fails (e.g., in tests with dummy files)
         if first_img is None:
-            log += (
-                "- Warning: Could not load images properly. This may be due to non-image files or a test environment.\n"
-            )
+            log += "- Warning: Could not load images properly. This may be due to non-image files or a test environment.\n"
             # Create a small dummy image for test purposes
             first_img = np.zeros((100, 100), dtype=np.uint8)
             frames = [np.zeros((100, 100), dtype=np.uint8) for _ in image_files]
         else:
             frames = []
             for img_file in image_files:
-                img = cv2.imread(os.path.join(image_sequence_path, img_file), cv2.IMREAD_GRAYSCALE)
+                img = cv2.imread(
+                    os.path.join(image_sequence_path, img_file), cv2.IMREAD_GRAYSCALE
+                )
                 if img is None:
                     # If one image fails, use a copy of the first image
                     img = first_img.copy()
@@ -749,7 +790,9 @@ def track_immune_cells_under_flow(
         mask = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
 
         # Identify cells using connected components
-        num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(mask, connectivity=8)
+        num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(
+            mask, connectivity=8
+        )
 
         # Filter out small objects (noise) and large objects (not cells)
         min_size = 20  # Minimum cell area in pixels
@@ -766,7 +809,11 @@ def track_immune_cells_under_flow(
                 height = stats[j, cv2.CC_STAT_HEIGHT]
 
                 # Calculate cell roundness (approximation)
-                roundness = min(width, height) / max(width, height) if max(width, height) > 0 else 0
+                roundness = (
+                    min(width, height) / max(width, height)
+                    if max(width, height) > 0
+                    else 0
+                )
 
                 frame_features.append(
                     {
@@ -777,7 +824,7 @@ def track_immune_cells_under_flow(
                         "width": width,
                         "height": height,
                         "roundness": roundness,
-                    }
+                    },
                 )
 
         features_by_frame.append(pd.DataFrame(frame_features))
@@ -812,7 +859,7 @@ def track_immune_cells_under_flow(
                 "width": [10, 10, 10, 10],
                 "height": [10, 10, 10, 10],
                 "roundness": [0.8, 0.8, 0.8, 0.8],
-            }
+            },
         )
         tracks = tp_features.copy()
         tracks["particle"] = [0, 1, 0, 1]  # Assign particle IDs manually
@@ -826,19 +873,19 @@ def track_immune_cells_under_flow(
             tracks = tp.filter_stubs(linked, min_track_length)
         except KeyError as e:
             # Handle the case where required columns are missing
-            log += f"- Warning: Error during tracking: {str(e)}. Using simulated tracks instead.\n"
+            log += f"- Warning: Error during tracking: {e!s}. Using simulated tracks instead.\n"
             # Create simple simulated tracks for test purposes
             tracks = tp_features.copy()
-            tracks["particle"] = [i % max(3, len(tp_features) // 3) for i in range(len(tp_features))]
+            tracks["particle"] = [
+                i % max(3, len(tp_features) // 3) for i in range(len(tp_features))
+            ]
 
     # Calculate track statistics
     track_ids = tracks["particle"].unique()
     log += f"- Identified {len(track_ids)} cell trajectories\n"
 
     if "min_track_length" in locals():
-        log += (
-            f"- Filtered to {len(tracks['particle'].unique())} trajectories of length ≥ {min_track_length} frames\n\n"
-        )
+        log += f"- Filtered to {len(tracks['particle'].unique())} trajectories of length ≥ {min_track_length} frames\n\n"
     else:
         log += "- Using simulated tracks for demonstration/test purposes\n\n"
 
@@ -863,24 +910,38 @@ def track_immune_cells_under_flow(
             # Calculate displacements between consecutive frames
             track_data["dx"] = track_data["x"].diff()
             track_data["dy"] = track_data["y"].diff()
-            track_data["displacement"] = np.sqrt(track_data["dx"] ** 2 + track_data["dy"] ** 2)
-            track_data["speed"] = track_data["displacement"] * pixel_size_um / time_interval_sec
+            track_data["displacement"] = np.sqrt(
+                track_data["dx"] ** 2 + track_data["dy"] ** 2
+            )
+            track_data["speed"] = (
+                track_data["displacement"] * pixel_size_um / time_interval_sec
+            )
 
             # Calculate direction relative to flow
             if flow_direction == "right":
-                track_data["flow_alignment"] = track_data["dx"] / (track_data["displacement"] + 1e-6)
+                track_data["flow_alignment"] = track_data["dx"] / (
+                    track_data["displacement"] + 1e-6
+                )
             elif flow_direction == "left":
-                track_data["flow_alignment"] = -track_data["dx"] / (track_data["displacement"] + 1e-6)
+                track_data["flow_alignment"] = -track_data["dx"] / (
+                    track_data["displacement"] + 1e-6
+                )
             elif flow_direction == "down":
-                track_data["flow_alignment"] = track_data["dy"] / (track_data["displacement"] + 1e-6)
+                track_data["flow_alignment"] = track_data["dy"] / (
+                    track_data["displacement"] + 1e-6
+                )
             else:  # up
-                track_data["flow_alignment"] = -track_data["dy"] / (track_data["displacement"] + 1e-6)
+                track_data["flow_alignment"] = -track_data["dy"] / (
+                    track_data["displacement"] + 1e-6
+                )
 
             # Classify behaviors for each time point
             track_data["behavior"] = "unknown"
 
             # Tethering/Rolling: Moving with flow direction, moderate speed
-            rolling_mask = (track_data["flow_alignment"] > 0.7) & (track_data["speed"] < speed_threshold)
+            rolling_mask = (track_data["flow_alignment"] > 0.7) & (
+                track_data["speed"] < speed_threshold
+            )
             track_data.loc[rolling_mask, "behavior"] = "rolling"
 
             # Arrest: Very low speed for multiple frames
@@ -917,13 +978,15 @@ def track_immune_cells_under_flow(
 
             # Diapedesis: Detected by significant change in morphology (roundness decreases)
             if "roundness" in track_data.columns:
-                diapedesis_mask = (track_data["behavior"] == "crawling") & (track_data["roundness"] < 0.5)
+                diapedesis_mask = (track_data["behavior"] == "crawling") & (
+                    track_data["roundness"] < 0.5
+                )
                 track_data.loc[diapedesis_mask, "behavior"] = "diapedesis"
 
             # Add to behaviors list
             behaviors.append(track_data)
         except Exception as e:
-            log += f"- Warning: Error processing track {track_id}: {str(e)}\n"
+            log += f"- Warning: Error processing track {track_id}: {e!s}\n"
             continue
 
     # Check if we have any valid behaviors
@@ -966,7 +1029,9 @@ def track_immune_cells_under_flow(
     return log
 
 
-def analyze_cfse_cell_proliferation(fcs_file_path, cfse_channel="FL1-A", lymphocyte_gate=None):
+def analyze_cfse_cell_proliferation(
+    fcs_file_path, cfse_channel="FL1-A", lymphocyte_gate=None
+):
     """Analyze CFSE-labeled cell samples to quantify cell division and proliferation.
 
     This function processes flow cytometry data from CFSE-labeled cells to calculate
@@ -1011,7 +1076,7 @@ def analyze_cfse_cell_proliferation(fcs_file_path, cfse_channel="FL1-A", lymphoc
 
         use_mock = False
     except Exception as e:
-        research_log.append(f"\nWarning: Could not import FlowCytometryTools: {str(e)}")
+        research_log.append(f"\nWarning: Could not import FlowCytometryTools: {e!s}")
         research_log.append("Using mock implementation for testing purposes.")
         use_mock = True
 
@@ -1029,13 +1094,15 @@ def analyze_cfse_cell_proliferation(fcs_file_path, cfse_channel="FL1-A", lymphoc
                 np.random.normal(500, 50, 800),  # Generation 1
                 np.random.normal(250, 30, 600),  # Generation 2
                 np.random.normal(125, 20, 400),  # Generation 3
-            ]
+            ],
         )
         generation_counts = [1000, 800, 600, 400]
         total_cells = sum(generation_counts)
 
         # Calculate division index and percent proliferating
-        division_index = sum(i * count for i, count in enumerate(generation_counts)) / total_cells
+        division_index = (
+            sum(i * count for i, count in enumerate(generation_counts)) / total_cells
+        )
         percent_proliferating = sum(generation_counts[1:]) / total_cells * 100
 
         research_log.append(f"Simulated data with {total_cells} events")
@@ -1046,7 +1113,7 @@ def analyze_cfse_cell_proliferation(fcs_file_path, cfse_channel="FL1-A", lymphoc
         research_log.append("\n## Step 4: Identifying Cell Generations")
         research_log.append("Identified 4 cell generations")
         research_log.append(
-            f"Generation distribution: Gen 0: {generation_counts[0]} cells, Gen 1: {generation_counts[1]} cells, Gen 2: {generation_counts[2]} cells, Gen 3: {generation_counts[3]} cells"
+            f"Generation distribution: Gen 0: {generation_counts[0]} cells, Gen 1: {generation_counts[1]} cells, Gen 2: {generation_counts[2]} cells, Gen 3: {generation_counts[3]} cells",
         )
     else:
         try:
@@ -1058,27 +1125,35 @@ def analyze_cfse_cell_proliferation(fcs_file_path, cfse_channel="FL1-A", lymphoc
             if lymphocyte_gate:
                 min_fsc, max_fsc, min_ssc, max_ssc = lymphocyte_gate
                 gated_sample = sample.gate(
-                    f"(FSC-A > {min_fsc}) & (FSC-A < {max_fsc}) & (SSC-A > {min_ssc}) & (SSC-A < {max_ssc})"
+                    f"(FSC-A > {min_fsc}) & (FSC-A < {max_fsc}) & (SSC-A > {min_ssc}) & (SSC-A < {max_ssc})",
                 )
                 research_log.append(
-                    f"Applied manual lymphocyte gate: FSC-A ({min_fsc}-{max_fsc}), SSC-A ({min_ssc}-{max_ssc})"
+                    f"Applied manual lymphocyte gate: FSC-A ({min_fsc}-{max_fsc}), SSC-A ({min_ssc}-{max_ssc})",
                 )
-                research_log.append(f"Gated population contains {len(gated_sample)} events")
+                research_log.append(
+                    f"Gated population contains {len(gated_sample)} events"
+                )
             else:
                 # Simple automatic gating based on FSC and SSC
                 fsc_median = np.median(sample["FSC-A"])
                 ssc_median = np.median(sample["SSC-A"])
                 gated_sample = sample.gate(
-                    f"(FSC-A > {fsc_median * 0.5}) & (FSC-A < {fsc_median * 1.8}) & (SSC-A > {ssc_median * 0.5}) & (SSC-A < {ssc_median * 1.8})"
+                    f"(FSC-A > {fsc_median * 0.5}) & (FSC-A < {fsc_median * 1.8}) & (SSC-A > {ssc_median * 0.5}) & (SSC-A < {ssc_median * 1.8})",
                 )
-                research_log.append("Applied automatic lymphocyte gate based on median FSC-A and SSC-A values")
-                research_log.append(f"Gated population contains {len(gated_sample)} events")
+                research_log.append(
+                    "Applied automatic lymphocyte gate based on median FSC-A and SSC-A values"
+                )
+                research_log.append(
+                    f"Gated population contains {len(gated_sample)} events"
+                )
 
             # Extract CFSE data
             research_log.append("\n## Step 3: Analyzing CFSE Intensity Distribution")
             try:
                 cfse_data = gated_sample[cfse_channel]
-                research_log.append(f"Extracted CFSE intensity data from channel {cfse_channel}")
+                research_log.append(
+                    f"Extracted CFSE intensity data from channel {cfse_channel}"
+                )
             except KeyError:
                 available_channels = ", ".join(gated_sample.channels)
                 return f"Error: CFSE channel '{cfse_channel}' not found. Available channels: {available_channels}"
@@ -1093,10 +1168,14 @@ def analyze_cfse_cell_proliferation(fcs_file_path, cfse_channel="FL1-A", lymphoc
             # Find the undivided peak (highest CFSE intensity)
             # For simplicity, we'll use a histogram-based approach
             hist, bin_edges = np.histogram(log_cfse, bins=100)
-            peak_indices = np.where((hist[1:-1] > hist[:-2]) & (hist[1:-1] > hist[2:]))[0] + 1
+            peak_indices = (
+                np.where((hist[1:-1] > hist[:-2]) & (hist[1:-1] > hist[2:]))[0] + 1
+            )
 
             if len(peak_indices) == 0:
-                research_log.append("No distinct peaks found in CFSE intensity distribution")
+                research_log.append(
+                    "No distinct peaks found in CFSE intensity distribution"
+                )
                 division_index = 0
                 percent_proliferating = 0
             else:
@@ -1107,7 +1186,9 @@ def analyze_cfse_cell_proliferation(fcs_file_path, cfse_channel="FL1-A", lymphoc
                 if len(sorted_peaks) == 1:
                     # Only one peak - assume it's undivided cells
                     undivided_peak = sorted_peaks[0]
-                    research_log.append(f"Detected single peak at CFSE intensity {10**undivided_peak:.2f}")
+                    research_log.append(
+                        f"Detected single peak at CFSE intensity {10**undivided_peak:.2f}"
+                    )
 
                     # Estimate threshold for proliferating cells (arbitrary cutoff at 80% of peak)
                     proliferation_threshold = 10 ** (undivided_peak - 0.3)
@@ -1116,14 +1197,22 @@ def analyze_cfse_cell_proliferation(fcs_file_path, cfse_channel="FL1-A", lymphoc
                     percent_proliferating = (proliferating_cells / total_cells) * 100
 
                     # Simplified division index calculation
-                    division_index = percent_proliferating / 100 * 1  # Assume average of 1 division
+                    division_index = (
+                        percent_proliferating / 100 * 1
+                    )  # Assume average of 1 division
 
-                    research_log.append("Single peak detected, using threshold-based estimation for proliferation")
+                    research_log.append(
+                        "Single peak detected, using threshold-based estimation for proliferation"
+                    )
                 else:
                     # Multiple peaks - can identify generations
                     undivided_peak = sorted_peaks[0]
-                    research_log.append("Detected multiple peaks in CFSE intensity distribution")
-                    research_log.append(f"Undivided cell peak at CFSE intensity {10**undivided_peak:.2f}")
+                    research_log.append(
+                        "Detected multiple peaks in CFSE intensity distribution"
+                    )
+                    research_log.append(
+                        f"Undivided cell peak at CFSE intensity {10**undivided_peak:.2f}"
+                    )
 
                     # Define generation boundaries based on peaks
                     generation_boundaries = []
@@ -1134,33 +1223,47 @@ def analyze_cfse_cell_proliferation(fcs_file_path, cfse_channel="FL1-A", lymphoc
                     # Add boundary for highly divided cells
                     if len(sorted_peaks) > 1:
                         last_diff = sorted_peaks[-2] - sorted_peaks[-1]
-                        generation_boundaries.append(10 ** (sorted_peaks[-1] - last_diff))
+                        generation_boundaries.append(
+                            10 ** (sorted_peaks[-1] - last_diff)
+                        )
 
                     # Count cells in each generation
                     generation_counts = []
-                    generation_counts.append(np.sum(cfse_data >= 10 ** sorted_peaks[0]))  # Gen 0
+                    generation_counts.append(
+                        np.sum(cfse_data >= 10 ** sorted_peaks[0])
+                    )  # Gen 0
 
                     for i in range(len(generation_boundaries) - 1):
                         gen_count = np.sum(
-                            (cfse_data < generation_boundaries[i]) & (cfse_data >= generation_boundaries[i + 1])
+                            (cfse_data < generation_boundaries[i])
+                            & (cfse_data >= generation_boundaries[i + 1]),
                         )
                         generation_counts.append(gen_count)
 
                     # Last generation (most divided)
                     if len(generation_boundaries) > 0:
-                        generation_counts.append(np.sum(cfse_data < generation_boundaries[-1]))
+                        generation_counts.append(
+                            np.sum(cfse_data < generation_boundaries[-1])
+                        )
 
                     # Calculate division index and percent proliferating
                     total_cells = sum(generation_counts)
-                    division_index = sum(i * count for i, count in enumerate(generation_counts)) / total_cells
-                    percent_proliferating = sum(generation_counts[1:]) / total_cells * 100
+                    division_index = (
+                        sum(i * count for i, count in enumerate(generation_counts))
+                        / total_cells
+                    )
+                    percent_proliferating = (
+                        sum(generation_counts[1:]) / total_cells * 100
+                    )
 
-                    research_log.append(f"Identified {len(generation_counts)} cell generations")
                     research_log.append(
-                        f"Generation distribution: {', '.join([f'Gen {i}: {count} cells' for i, count in enumerate(generation_counts)])}"
+                        f"Identified {len(generation_counts)} cell generations"
+                    )
+                    research_log.append(
+                        f"Generation distribution: {', '.join([f'Gen {i}: {count} cells' for i, count in enumerate(generation_counts)])}",
                     )
         except Exception as e:
-            research_log.append(f"Error during analysis: {str(e)}")
+            research_log.append(f"Error during analysis: {e!s}")
 
             # Create fallback values for report
             division_index = 1.2  # Reasonable fallback value
@@ -1170,7 +1273,9 @@ def analyze_cfse_cell_proliferation(fcs_file_path, cfse_channel="FL1-A", lymphoc
     # Report results
     research_log.append("\n## Results:")
     research_log.append(f"Cell Division Index: {division_index:.2f}")
-    research_log.append(f"Percentage of Proliferating Cells: {percent_proliferating:.2f}%")
+    research_log.append(
+        f"Percentage of Proliferating Cells: {percent_proliferating:.2f}%"
+    )
 
     return "\n".join(research_log)
 
@@ -1210,9 +1315,13 @@ def analyze_cytokine_production_in_cd4_tcells(fcs_files_dict, output_dir="./resu
 
     # Check required stimulation conditions
     required_conditions = ["unstimulated", "Mtb300", "CMV", "SEB"]
-    missing_conditions = [cond for cond in required_conditions if cond not in fcs_files_dict]
+    missing_conditions = [
+        cond for cond in required_conditions if cond not in fcs_files_dict
+    ]
     if missing_conditions:
-        log += f"WARNING: Missing data for conditions: {', '.join(missing_conditions)}\n"
+        log += (
+            f"WARNING: Missing data for conditions: {', '.join(missing_conditions)}\n"
+        )
 
     # Process each stimulation condition
     for condition, fcs_file in fcs_files_dict.items():
@@ -1246,7 +1355,9 @@ def analyze_cytokine_production_in_cd4_tcells(fcs_files_dict, output_dir="./resu
         # Apply gates to identify CD4+ T cells
         try:
             # Create a threshold gate for CD4+ cells (adjust threshold as needed)
-            cd4_positive = sample.gate(f"{cd4_channel} > 1000")  # Threshold value should be adjusted based on data
+            cd4_positive = sample.gate(
+                f"{cd4_channel} > 1000"
+            )  # Threshold value should be adjusted based on data
             log += f"- Applied CD4+ gating: {len(cd4_positive.data)} cells (from {len(sample.data)} total)\n"
 
             # Extract cytokine data for CD4+ cells
@@ -1261,20 +1372,26 @@ def analyze_cytokine_production_in_cd4_tcells(fcs_files_dict, output_dir="./resu
                     continue
 
                 # Gate for cytokine positive cells (threshold to be adjusted based on data)
-                cytokine_positive = cd4_positive.gate(f"{cytokine_channel} > 500")  # Threshold value should be adjusted
+                cytokine_positive = cd4_positive.gate(
+                    f"{cytokine_channel} > 500"
+                )  # Threshold value should be adjusted
 
                 # Calculate frequency of cytokine-producing cells within CD4+ population
                 frequency = (
-                    len(cytokine_positive.data) / len(cd4_positive.data) * 100 if len(cd4_positive.data) > 0 else 0
+                    len(cytokine_positive.data) / len(cd4_positive.data) * 100
+                    if len(cd4_positive.data) > 0
+                    else 0
                 )
 
-                log += f"- {cytokine_name}+ frequency: {frequency:.2f}% of CD4+ T cells\n"
+                log += (
+                    f"- {cytokine_name}+ frequency: {frequency:.2f}% of CD4+ T cells\n"
+                )
                 cytokine_data[cytokine_name] = frequency
 
             results[condition] = cytokine_data
 
         except Exception as e:
-            log += f"ERROR during analysis: {str(e)}\n"
+            log += f"ERROR during analysis: {e!s}\n"
 
     # Summarize results across conditions
     if results:
@@ -1295,9 +1412,15 @@ def analyze_cytokine_production_in_cd4_tcells(fcs_files_dict, output_dir="./resu
             for condition in [c for c in results if c != "unstimulated"]:
                 for cytokine in results[condition]:
                     if cytokine in background:
-                        background_subtracted = results[condition][cytokine] - background[cytokine]
-                        background_subtracted = max(0, background_subtracted)  # Ensure non-negative
-                        df_results.loc[condition, f"{cytokine} (background-subtracted)"] = background_subtracted
+                        background_subtracted = (
+                            results[condition][cytokine] - background[cytokine]
+                        )
+                        background_subtracted = max(
+                            0, background_subtracted
+                        )  # Ensure non-negative
+                        df_results.loc[
+                            condition, f"{cytokine} (background-subtracted)"
+                        ] = background_subtracted
 
         # Save results to CSV
         results_file = os.path.join(output_dir, "cytokine_frequencies.csv")
@@ -1316,7 +1439,11 @@ def analyze_cytokine_production_in_cd4_tcells(fcs_files_dict, output_dir="./resu
             log += "\nComparison of responses to different stimuli:\n"
 
             for cytokine in ["IFN-γ", "IL-17"]:
-                if cytokine in results["Mtb300"] and cytokine in results["CMV"] and cytokine in results["SEB"]:
+                if (
+                    cytokine in results["Mtb300"]
+                    and cytokine in results["CMV"]
+                    and cytokine in results["SEB"]
+                ):
                     mtb_response = results["Mtb300"][cytokine]
                     cmv_response = results["CMV"][cytokine]
                     seb_response = results["SEB"][cytokine]
@@ -1328,7 +1455,9 @@ def analyze_cytokine_production_in_cd4_tcells(fcs_files_dict, output_dir="./resu
     return log
 
 
-def analyze_ebv_antibody_titers(raw_od_data, standard_curve_data, sample_metadata, output_dir="./"):
+def analyze_ebv_antibody_titers(
+    raw_od_data, standard_curve_data, sample_metadata, output_dir="./"
+):
     """Analyze ELISA data to quantify EBV antibody titers in plasma/serum samples.
 
     Parameters
@@ -1377,7 +1506,7 @@ def analyze_ebv_antibody_titers(raw_od_data, standard_curve_data, sample_metadat
             "EA_IgM",
             "EBNA1_IgG",
             "EBNA1_IgM",
-        ]
+        ],
     )
 
     log.append("### 1. Data Preprocessing")
@@ -1396,7 +1525,9 @@ def analyze_ebv_antibody_titers(raw_od_data, standard_curve_data, sample_metadat
         ]:
             if antibody_type not in readings:
                 missing_values = True
-                log.append(f"  - Warning: Missing {antibody_type} reading for sample {sample_id}")
+                log.append(
+                    f"  - Warning: Missing {antibody_type} reading for sample {sample_id}"
+                )
 
     if not missing_values:
         log.append("  - No missing values detected")
@@ -1412,7 +1543,9 @@ def analyze_ebv_antibody_titers(raw_od_data, standard_curve_data, sample_metadat
         # Simple linear regression for standard curve
         slope, intercept = np.polyfit(ods, concentrations, 1)
         standard_curves[antibody_type] = (slope, intercept)
-        log.append(f"  - {antibody_type}: Fitted curve with slope={slope:.4f}, intercept={intercept:.4f}")
+        log.append(
+            f"  - {antibody_type}: Fitted curve with slope={slope:.4f}, intercept={intercept:.4f}"
+        )
 
     log.append("")
     log.append("### 3. Antibody Titer Quantification")
@@ -1425,7 +1558,9 @@ def analyze_ebv_antibody_titers(raw_od_data, standard_curve_data, sample_metadat
         # Add metadata
         if sample_id in sample_metadata:
             sample_data["Group"] = sample_metadata[sample_id].get("group", "Unknown")
-            sample_data["Collection_Date"] = sample_metadata[sample_id].get("collection_date", "Unknown")
+            sample_data["Collection_Date"] = sample_metadata[sample_id].get(
+                "collection_date", "Unknown"
+            )
         else:
             sample_data["Group"] = "Unknown"
             sample_data["Collection_Date"] = "Unknown"
@@ -1452,7 +1587,9 @@ def analyze_ebv_antibody_titers(raw_od_data, standard_curve_data, sample_metadat
                 sample_data[antibody_type] = np.nan
 
         # Add to results dataframe
-        results_df = pd.concat([results_df, pd.DataFrame([sample_data])], ignore_index=True)
+        results_df = pd.concat(
+            [results_df, pd.DataFrame([sample_data])], ignore_index=True
+        )
 
     log.append("")
     log.append("### 4. Results Summary")
@@ -1556,7 +1693,11 @@ def analyze_cns_lesion_histology(image_path, output_dir="./output", stain_type="
             original_image = io.imread(image_path)
 
             # Convert to grayscale if RGB
-            gray_image = color.rgb2gray(original_image) if len(original_image.shape) > 2 else original_image
+            gray_image = (
+                color.rgb2gray(original_image)
+                if len(original_image.shape) > 2
+                else original_image
+            )
 
             # Enhance contrast
             enhanced_image = exposure.equalize_adapthist(gray_image)
@@ -1594,7 +1735,9 @@ def analyze_cns_lesion_histology(image_path, output_dir="./output", stain_type="
                 damage_score = contrast / (homogeneity * energy)
 
                 log.append(f"Detected {cell_count} cells")
-                log.append(f"Texture analysis completed: contrast={contrast:.3f}, homogeneity={homogeneity:.3f}")
+                log.append(
+                    f"Texture analysis completed: contrast={contrast:.3f}, homogeneity={homogeneity:.3f}"
+                )
                 log.append(f"Calculated damage score: {damage_score:.2f}")
 
             elif stain_type == "LFB":
@@ -1603,12 +1746,18 @@ def analyze_cns_lesion_histology(image_path, output_dir="./output", stain_type="
                 # Blue intensity correlates with myelin content
                 if len(original_image.shape) > 2:
                     # Extract blue channel for RGB images
-                    blue_channel = original_image[:, :, 2] if original_image.shape[2] >= 3 else gray_image
+                    blue_channel = (
+                        original_image[:, :, 2]
+                        if original_image.shape[2] >= 3
+                        else gray_image
+                    )
 
                     # Threshold to identify myelin
                     thresh_val = filters.threshold_otsu(blue_channel)
                     myelin_mask = blue_channel > thresh_val
-                    myelin_mask = morphology.remove_small_objects(myelin_mask, min_size=100)
+                    myelin_mask = morphology.remove_small_objects(
+                        myelin_mask, min_size=100
+                    )
 
                     # Calculate myelin content as percentage of tissue area
                     myelin_percent = np.sum(myelin_mask) / myelin_mask.size * 100
@@ -1639,10 +1788,14 @@ def analyze_cns_lesion_histology(image_path, output_dir="./output", stain_type="
                 # Positive staining appears brown/dark
                 thresh_val = filters.threshold_otsu(enhanced_image)
                 positive_stain_mask = enhanced_image < thresh_val
-                positive_stain_mask = morphology.remove_small_objects(positive_stain_mask, min_size=30)
+                positive_stain_mask = morphology.remove_small_objects(
+                    positive_stain_mask, min_size=30
+                )
 
                 # Calculate percentage of positive staining
-                positive_percent = np.sum(positive_stain_mask) / positive_stain_mask.size * 100
+                positive_percent = (
+                    np.sum(positive_stain_mask) / positive_stain_mask.size * 100
+                )
 
                 # Count individual positive cells
                 labeled_cells = measure.label(positive_stain_mask)
@@ -1683,9 +1836,11 @@ def analyze_cns_lesion_histology(image_path, output_dir="./output", stain_type="
 
                 # Save the overlay image
                 io.imsave(result_filename, (overlay * 255).astype(np.uint8))
-                log.append(f"Segmentation result saved to: {os.path.basename(result_filename)}")
+                log.append(
+                    f"Segmentation result saved to: {os.path.basename(result_filename)}"
+                )
             except Exception as e:
-                log.append(f"Warning: Could not save segmentation result: {str(e)}")
+                log.append(f"Warning: Could not save segmentation result: {e!s}")
 
             # Create metrics file
             try:
@@ -1711,10 +1866,10 @@ def analyze_cns_lesion_histology(image_path, output_dir="./output", stain_type="
 
                 log.append(f"Metrics saved to: {os.path.basename(metrics_filename)}")
             except Exception as e:
-                log.append(f"Warning: Could not save metrics file: {str(e)}")
+                log.append(f"Warning: Could not save metrics file: {e!s}")
 
         except Exception as e:
-            log.append(f"Error during image analysis: {str(e)}")
+            log.append(f"Error during image analysis: {e!s}")
             log.append("Falling back to simulated analysis")
             # Fall back to simulation
             HAS_SKIMAGE = False
@@ -1744,9 +1899,11 @@ def analyze_cns_lesion_histology(image_path, output_dir="./output", stain_type="
                     f.write("  - Homogeneity: 0.1200\n")
                     f.write("  - Energy: 0.0950\n")
 
-                log.append(f"Simulated metrics saved to: {os.path.basename(metrics_filename)}")
+                log.append(
+                    f"Simulated metrics saved to: {os.path.basename(metrics_filename)}"
+                )
             except Exception as e:
-                log.append(f"Warning: Could not save simulated metrics file: {str(e)}")
+                log.append(f"Warning: Could not save simulated metrics file: {e!s}")
 
         elif stain_type == "LFB":
             myelin_percent = 65.0  # Simulated myelin content
@@ -1765,9 +1922,11 @@ def analyze_cns_lesion_histology(image_path, output_dir="./output", stain_type="
                     f.write(f"Myelin content: {myelin_percent:.2f}%\n")
                     f.write(f"Demyelination score: {demyelination_score:.2f}\n")
 
-                log.append(f"Simulated metrics saved to: {os.path.basename(metrics_filename)}")
+                log.append(
+                    f"Simulated metrics saved to: {os.path.basename(metrics_filename)}"
+                )
             except Exception as e:
-                log.append(f"Warning: Could not save simulated metrics file: {str(e)}")
+                log.append(f"Warning: Could not save simulated metrics file: {e!s}")
 
         elif stain_type == "IHC":
             cell_count = 220  # Simulated positive cell count
@@ -1789,26 +1948,36 @@ def analyze_cns_lesion_histology(image_path, output_dir="./output", stain_type="
                     f.write(f"Positive staining: {positive_percent:.2f}%\n")
                     f.write(f"Infiltration score: {infiltration_score:.2f}\n")
 
-                log.append(f"Simulated metrics saved to: {os.path.basename(metrics_filename)}")
+                log.append(
+                    f"Simulated metrics saved to: {os.path.basename(metrics_filename)}"
+                )
             except Exception as e:
-                log.append(f"Warning: Could not save simulated metrics file: {str(e)}")
+                log.append(f"Warning: Could not save simulated metrics file: {e!s}")
 
     # Add interpretation based on the results
     log.append("\nINTERPRETATION:")
     if stain_type == "H&E":
         if cell_count > 1000:
-            log.append("- HIGH cellular infiltration detected, indicating significant inflammation")
+            log.append(
+                "- HIGH cellular infiltration detected, indicating significant inflammation"
+            )
         elif cell_count > 500:
             log.append("- MODERATE cellular infiltration detected")
         else:
             log.append("- LOW cellular infiltration detected")
 
         if damage_score > 10:
-            log.append("- Tissue texture analysis suggests SEVERE tissue damage/disorganization")
+            log.append(
+                "- Tissue texture analysis suggests SEVERE tissue damage/disorganization"
+            )
         elif damage_score > 5:
-            log.append("- Tissue texture analysis suggests MODERATE tissue damage/disorganization")
+            log.append(
+                "- Tissue texture analysis suggests MODERATE tissue damage/disorganization"
+            )
         else:
-            log.append("- Tissue texture analysis suggests MINIMAL tissue damage/disorganization")
+            log.append(
+                "- Tissue texture analysis suggests MINIMAL tissue damage/disorganization"
+            )
 
     elif stain_type == "LFB":
         if "demyelination_score" in locals():
@@ -1829,14 +1998,18 @@ def analyze_cns_lesion_histology(image_path, output_dir="./output", stain_type="
     elif stain_type == "IHC":
         if "infiltration_score" in locals():
             if infiltration_score > 30:
-                log.append("- HIGH level of immune marker positivity, indicating SEVERE inflammation/infiltration")
+                log.append(
+                    "- HIGH level of immune marker positivity, indicating SEVERE inflammation/infiltration"
+                )
             elif infiltration_score > 15:
                 log.append("- MODERATE level of immune marker positivity")
             else:
                 log.append("- LOW level of immune marker positivity")
         # For simulated data
         elif infiltration_score > 30:
-            log.append("- HIGH level of immune marker positivity, indicating SEVERE inflammation/infiltration")
+            log.append(
+                "- HIGH level of immune marker positivity, indicating SEVERE inflammation/infiltration"
+            )
         elif infiltration_score > 15:
             log.append("- MODERATE level of immune marker positivity")
         else:
@@ -1845,7 +2018,9 @@ def analyze_cns_lesion_histology(image_path, output_dir="./output", stain_type="
     return "\n".join(log)
 
 
-def analyze_immunohistochemistry_image(image_path, protein_name="Unknown", output_dir="./ihc_results/"):
+def analyze_immunohistochemistry_image(
+    image_path, protein_name="Unknown", output_dir="./ihc_results/"
+):
     """Analyzes immunohistochemistry images to quantify protein expression and spatial distribution.
 
     Parameters
@@ -1872,6 +2047,14 @@ def analyze_immunohistochemistry_image(image_path, protein_name="Unknown", outpu
 
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
+
+    if not os.path.exists(image_path):
+        return (
+            "Immunohistochemistry (IHC) Analysis Log\n"
+            "====================================\n"
+            f"Error: image file not found at path: {image_path}\n"
+            "Tip: Provide a path that exists inside the service container (e.g. under /data if mounted).\n"
+        )
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     base_filename = f"{protein_name}_{timestamp}"
 
@@ -1880,7 +2063,7 @@ def analyze_immunohistochemistry_image(image_path, protein_name="Unknown", outpu
         img = io.imread(image_path)
         log = f"Loaded image from {image_path}\n"
     except Exception as e:
-        return f"Error loading image: {str(e)}"
+        return f"Error loading image: {e!s}"
 
     # Convert to grayscale if RGB
     if len(img.shape) == 3 and img.shape[2] >= 3:
@@ -1902,7 +2085,9 @@ def analyze_immunohistochemistry_image(image_path, protein_name="Unknown", outpu
     # Clean up the mask with morphological operations
     binary_mask = morphology.remove_small_objects(binary_mask, min_size=50)
     binary_mask = morphology.remove_small_holes(binary_mask, area_threshold=50)
-    log += "Segmented tissue regions using Otsu thresholding and morphological cleanup\n"
+    log += (
+        "Segmented tissue regions using Otsu thresholding and morphological cleanup\n"
+    )
 
     # Label connected regions
     labeled_mask, num_features = measure.label(binary_mask, return_num=True)
@@ -1953,7 +2138,9 @@ def analyze_immunohistochemistry_image(image_path, protein_name="Unknown", outpu
     csv_file = os.path.join(output_dir, f"{base_filename}_region_data.csv")
     with open(csv_file, "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["Region ID", "Area", "Mean Intensity", "Centroid Y", "Centroid X"])
+        writer.writerow(
+            ["Region ID", "Area", "Mean Intensity", "Centroid Y", "Centroid X"]
+        )
         for i, prop in enumerate(region_props):
             writer.writerow(
                 [
@@ -1962,7 +2149,7 @@ def analyze_immunohistochemistry_image(image_path, protein_name="Unknown", outpu
                     prop.mean_intensity,
                     prop.centroid[0],
                     prop.centroid[1],
-                ]
+                ],
             )
 
     log += "\nResults saved:\n"
