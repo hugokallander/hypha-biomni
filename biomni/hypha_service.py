@@ -225,7 +225,29 @@ def _create_async_function(  # noqa: PLR0913 accepts several parts for clarity
     ) -> dict[str, Any]:
         impl_params = inspect.signature(_impl).parameters
         call_kwargs = {k: v for k, v in kwargs.items() if k in impl_params}
-        return _impl(**call_kwargs)
+        timeout_raw = os.getenv("BIOMNI_TOOL_TIMEOUT_SECONDS", "")
+        timeout_s: float | None
+        if timeout_raw.strip() == "":
+            timeout_s = None
+        else:
+            try:
+                timeout_s = float(timeout_raw)
+            except ValueError:
+                timeout_s = None
+
+        async def _run() -> Any:
+            if inspect.iscoroutinefunction(_impl):
+                return await _impl(**call_kwargs)
+            return await asyncio.to_thread(_impl, **call_kwargs)
+
+        try:
+            if timeout_s is not None and timeout_s > 0:
+                return await asyncio.wait_for(_run(), timeout=timeout_s)
+            return await _run()
+        except TimeoutError as exc:
+            raise TimeoutError(
+                f"Tool '{_tool}' timed out after {timeout_s:.1f}s",
+            ) from exc
 
     arg_parts = [p["name"] for p in required]
     for p in optional:

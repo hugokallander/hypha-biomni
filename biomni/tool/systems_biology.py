@@ -16,24 +16,67 @@ def query_chatnt(question, sequence, device=-1):
         Answer to the question
 
     """
-    from transformers import pipeline
+    import os
 
-    pipe = pipeline(model="InstaDeepAI/ChatNT", trust_remote_code=True, device=device)
+    enabled = os.getenv("BIOMNI_ENABLE_CHATNT", "0").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+    }
+    if not enabled:
+        return (
+            "ChatNT is disabled by default in this service. "
+            "Set BIOMNI_ENABLE_CHATNT=1 to enable it (requires the model to be "
+            "available in the Hugging Face cache or network access)."
+        )
+
+    local_only = os.getenv("BIOMNI_CHATNT_LOCAL_ONLY", "1").strip().lower() not in {
+        "0",
+        "false",
+        "no",
+    }
+
+    try:
+        from transformers import pipeline
+    except Exception as exc:  # noqa: BLE001
+        return f"transformers is not available: {exc!s}"
+
+    try:
+        pipe = pipeline(
+            model="InstaDeepAI/ChatNT",
+            trust_remote_code=True,
+            device=device,
+            model_kwargs={"local_files_only": local_only},
+            tokenizer_kwargs={"local_files_only": local_only},
+        )
+    except Exception as exc:  # noqa: BLE001
+        hint = (
+            "Set BIOMNI_CHATNT_LOCAL_ONLY=0 to allow downloads"
+            if local_only
+            else "Ensure the model is reachable and the environment can download it"
+        )
+        return f"Failed to load ChatNT pipeline ({hint}): {exc!s}"
 
     # Define custom inputs (note that the number of <DNA> token in the english sequence must be equal to len(dna_sequences))
-    english_sequence = f"{question} <DNA> ?"
-    dna_sequences = [sequence]
+    q = question if isinstance(question, str) else str(question)
+    seq = sequence if isinstance(sequence, str) else str(sequence)
+
+    english_sequence = f"{q} <DNA> ?"
+    dna_sequences = [seq]
 
     # Generate sequence
     generated_english_sequence = pipe(
-        inputs={"english_sequence": english_sequence, "dna_sequences": dna_sequences}
+        inputs={"english_sequence": english_sequence, "dna_sequences": dna_sequences},
     )
 
     return generated_english_sequence
 
 
 def perform_flux_balance_analysis(
-    model_file, constraints=None, objective_reaction=None, output_file="fba_results.csv"
+    model_file,
+    constraints=None,
+    objective_reaction=None,
+    output_file="fba_results.csv",
 ):
     """Perform Flux Balance Analysis (FBA) on a genome-scale metabolic network model.
 
@@ -153,7 +196,9 @@ def perform_flux_balance_analysis(
 
 
 def model_protein_dimerization_network(
-    monomer_concentrations, dimerization_affinities, network_topology
+    monomer_concentrations,
+    dimerization_affinities,
+    network_topology,
 ):
     """Model protein dimerization networks to find equilibrium concentrations of dimers.
 
@@ -223,7 +268,7 @@ def model_protein_dimerization_network(
 
         # Calculate rate of change for each species
         for i, ((m1_idx, m2_idx), affinity) in enumerate(
-            zip(dimer_pairs, dimer_affinities, strict=False)
+            zip(dimer_pairs, dimer_affinities, strict=False),
         ):
             # Formation rate: kon * [A] * [B]
             # Dissociation rate: koff * [AB]
@@ -385,7 +430,9 @@ def simulate_metabolic_network_perturbation(
         rates = {}
         for reaction in reactions:
             rates[reaction.id] = mass_action_kinetics(
-                reaction, concentrations, metabolite_ids
+                reaction,
+                concentrations,
+                metabolite_ids,
             )
 
         # Update concentration changes based on stoichiometry and rates
@@ -414,7 +461,11 @@ def simulate_metabolic_network_perturbation(
     try:
         solution = solve_ivp(
             lambda t, y: ode_system(
-                t, y, metabolite_ids, model.reactions, perturbation
+                t,
+                y,
+                metabolite_ids,
+                model.reactions,
+                perturbation,
             ),
             t_span,
             conc_array,
@@ -440,7 +491,9 @@ def simulate_metabolic_network_perturbation(
 
         for r_idx, reaction in enumerate(model.reactions):
             fluxes[t_idx, r_idx] = mass_action_kinetics(
-                reaction, concentrations, metabolite_ids
+                reaction,
+                concentrations,
+                metabolite_ids,
             )
 
     log += "Calculated reaction fluxes for all time points.\n\n"
@@ -481,7 +534,9 @@ def simulate_metabolic_network_perturbation(
     if significant_changes:
         log += "Top 5 most affected metabolites (by relative concentration change):\n"
         for m_id, change in sorted(
-            significant_changes, key=lambda x: x[1], reverse=True
+            significant_changes,
+            key=lambda x: x[1],
+            reverse=True,
         )[:5]:
             log += f"  - {m_id}: {change * 100:.2f}% change\n"
 
@@ -601,7 +656,13 @@ def simulate_protein_signaling_network(
 
     # Solve the ODE system
     solution = solve_ivp(
-        ode_system, t_span, y0, method="LSODA", t_eval=t_eval, rtol=1e-6, atol=1e-9
+        ode_system,
+        t_span,
+        y0,
+        method="LSODA",
+        t_eval=t_eval,
+        rtol=1e-6,
+        atol=1e-9,
     )
 
     # Save results to CSV
@@ -764,7 +825,7 @@ def compare_protein_structures(
     io.save(aligned_file2, select=Select())
 
     research_log.append(
-        f"Aligned structures saved as {aligned_file1} and {aligned_file2}"
+        f"Aligned structures saved as {aligned_file1} and {aligned_file2}",
     )
 
     # Report on significant differences
@@ -774,11 +835,11 @@ def compare_protein_structures(
         )
         for res_id, res_name, distance in significant_changes:
             research_log.append(
-                f"  - Residue {res_name}{res_id}: {distance:.2f} Å displacement"
+                f"  - Residue {res_name}{res_id}: {distance:.2f} Å displacement",
             )
     else:
         research_log.append(
-            "\nNo significant conformational changes detected (threshold: 2.0 Å)"
+            "\nNo significant conformational changes detected (threshold: 2.0 Å)",
         )
 
     # Save per-residue distance data
@@ -814,18 +875,18 @@ def compare_protein_structures(
             end_res = region[-1][0]
             avg_dist = sum(r[1] for r in region) / len(region)
             research_log.append(
-                f"Region {i}: Residues {start_res}-{end_res} (Average displacement: {avg_dist:.2f} Å)"
+                f"Region {i}: Residues {start_res}-{end_res} (Average displacement: {avg_dist:.2f} Å)",
             )
 
     research_log.append("\n## Summary")
     research_log.append(f"- Compared structures from {pdb_file1} and {pdb_file2}")
     research_log.append(f"- Overall RMSD: {rmsd:.4f} Å")
     research_log.append(
-        f"- {len(significant_changes)} residues with significant conformational changes"
+        f"- {len(significant_changes)} residues with significant conformational changes",
     )
     research_log.append(f"- {len(regions)} continuous regions of conformational change")
     research_log.append(
-        f"- Files generated: {aligned_file1}, {aligned_file2}, {distance_file}"
+        f"- Files generated: {aligned_file1}, {aligned_file2}, {distance_file}",
     )
 
     return "\n".join(research_log)
@@ -923,7 +984,12 @@ def simulate_renin_angiotensin_system_dynamics(
 
     # Solve the ODE system
     solution = solve_ivp(
-        ras_ode_system, t_span, y0, method="RK45", t_eval=t_eval, rtol=1e-6
+        ras_ode_system,
+        t_span,
+        y0,
+        method="RK45",
+        t_eval=t_eval,
+        rtol=1e-6,
     )
 
     # Create DataFrame with results

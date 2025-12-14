@@ -29,7 +29,9 @@ def analyze_aortic_diameter_and_geometry(image_path, output_dir="./output"):
 
     # Initialize research log
     log = []
-    log.append(f"Aortic Diameter and Geometry Analysis - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    log.append(
+        f"Aortic Diameter and Geometry Analysis - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+    )
     log.append(f"Input image: {image_path}")
 
     # Step 1: Load the image
@@ -56,13 +58,15 @@ def analyze_aortic_diameter_and_geometry(image_path, output_dir="./output"):
         log.append("  - Enhanced contrast using CLAHE")
 
     except Exception as e:
-        return f"Error during image loading: {str(e)}"
+        return f"Error during image loading: {e!s}"
 
     # Step 2: Segment the aorta
     log.append("\n2. Aorta segmentation")
     try:
         # Otsu thresholding for initial segmentation
-        thresh_val, binary = cv2.threshold(image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        thresh_val, binary = cv2.threshold(
+            image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
+        )
         log.append(f"  - Applied Otsu thresholding (threshold value: {thresh_val})")
 
         # Morphological operations to clean up the binary image
@@ -72,7 +76,9 @@ def analyze_aortic_diameter_and_geometry(image_path, output_dir="./output"):
         log.append("  - Applied morphological operations to refine segmentation")
 
         # Find contours
-        contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv2.findContours(
+            binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        )
         log.append(f"  - Detected {len(contours)} contours")
 
         # Assuming the aorta is one of the largest contours
@@ -82,10 +88,12 @@ def analyze_aortic_diameter_and_geometry(image_path, output_dir="./output"):
         # Sort contours by area and take the largest
         contours = sorted(contours, key=cv2.contourArea, reverse=True)
         aorta_contour = contours[0]  # Assuming the largest contour is the aorta
-        log.append(f"  - Selected largest contour as aorta (area: {cv2.contourArea(aorta_contour)} px²)")
+        log.append(
+            f"  - Selected largest contour as aorta (area: {cv2.contourArea(aorta_contour)} px²)"
+        )
 
     except Exception as e:
-        return f"Error during aorta segmentation: {str(e)}"
+        return f"Error during aorta segmentation: {e!s}"
 
     # Step 3: Measure aortic diameters
     log.append("\n3. Measuring aortic diameters")
@@ -106,24 +114,33 @@ def analyze_aortic_diameter_and_geometry(image_path, output_dir="./output"):
             log.append("  - Warning: Could not calculate aorta centroid")
 
         # Measure aortic root diameter (assuming it's at the bottom of the contour)
-        aortic_root_points = sorted(aorta_contour.reshape(-1, 2), key=lambda p: p[1], reverse=True)[:20]
-        aortic_root_diameter = np.max([p[0] for p in aortic_root_points]) - np.min([p[0] for p in aortic_root_points])
+        aortic_root_points = sorted(
+            aorta_contour.reshape(-1, 2), key=lambda p: p[1], reverse=True
+        )[:20]
+        aortic_root_diameter = np.max([p[0] for p in aortic_root_points]) - np.min(
+            [p[0] for p in aortic_root_points]
+        )
         log.append(f"  - Aortic root diameter: {aortic_root_diameter:.2f} pixels")
 
         # Measure ascending aorta diameter (assuming it's at the middle of the contour)
         y_mid = (
-            np.min([p[1] for p in aorta_contour.reshape(-1, 2)]) + np.max([p[1] for p in aorta_contour.reshape(-1, 2)])
+            np.min([p[1] for p in aorta_contour.reshape(-1, 2)])
+            + np.max([p[1] for p in aorta_contour.reshape(-1, 2)])
         ) // 2
-        ascending_points = [p for p in aorta_contour.reshape(-1, 2) if abs(p[1] - y_mid) < 10]
+        ascending_points = [
+            p for p in aorta_contour.reshape(-1, 2) if abs(p[1] - y_mid) < 10
+        ]
         if ascending_points:
-            ascending_diameter = np.max([p[0] for p in ascending_points]) - np.min([p[0] for p in ascending_points])
+            ascending_diameter = np.max([p[0] for p in ascending_points]) - np.min(
+                [p[0] for p in ascending_points]
+            )
             log.append(f"  - Ascending aorta diameter: {ascending_diameter:.2f} pixels")
         else:
             ascending_diameter = 0
             log.append("  - Warning: Could not measure ascending aorta diameter")
 
     except Exception as e:
-        return f"Error during diameter measurements: {str(e)}"
+        return f"Error during diameter measurements: {e!s}"
 
     # Step 4: Calculate geometric parameters
     log.append("\n4. Calculating aortic geometry parameters")
@@ -138,7 +155,8 @@ def analyze_aortic_diameter_and_geometry(image_path, output_dir="./output"):
         for i in range(len(hull_points)):
             for j in range(i + 1, len(hull_points)):
                 dist = np.sqrt(
-                    (hull_points[i][0] - hull_points[j][0]) ** 2 + (hull_points[i][1] - hull_points[j][1]) ** 2
+                    (hull_points[i][0] - hull_points[j][0]) ** 2
+                    + (hull_points[i][1] - hull_points[j][1]) ** 2,
                 )
                 max_dist = max(max_dist, dist)
 
@@ -161,7 +179,7 @@ def analyze_aortic_diameter_and_geometry(image_path, output_dir="./output"):
             log.append("  - Warning: Could not calculate dilation index")
 
     except Exception as e:
-        return f"Error during geometry calculations: {str(e)}"
+        return f"Error during geometry calculations: {e!s}"
 
     # Step 5: Save results
     log.append("\n5. Saving results")
@@ -174,7 +192,9 @@ def analyze_aortic_diameter_and_geometry(image_path, output_dir="./output"):
         cv2.circle(output_image, (cx, cy), 5, (0, 0, 255), -1)
 
         # Save the output image
-        output_filename = os.path.join(output_dir, f"aorta_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png")
+        output_filename = os.path.join(
+            output_dir, f"aorta_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+        )
         cv2.imwrite(output_filename, output_image)
         log.append(f"  - Saved annotated image to: {output_filename}")
 
@@ -191,7 +211,7 @@ def analyze_aortic_diameter_and_geometry(image_path, output_dir="./output"):
         log.append(f"  - Saved measurements to: {measurements_filename}")
 
     except Exception as e:
-        return f"Error during saving results: {str(e)}"
+        return f"Error during saving results: {e!s}"
 
     # Step 6: Summarize findings
     log.append("\n6. Summary of findings")
@@ -242,7 +262,9 @@ def analyze_atp_luminescence_assay(
     import pandas as pd
 
     log = []
-    log.append(f"ATP Content Measurement Analysis - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    log.append(
+        f"ATP Content Measurement Analysis - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+    )
     log.append("=" * 50)
 
     # Step 1: Load the raw luminescence data
@@ -252,7 +274,7 @@ def analyze_atp_luminescence_assay(
         log.append(f"Successfully loaded data from {data_file}")
         log.append(f"Number of samples: {len(sample_data)}")
     except Exception as e:
-        log.append(f"Error loading sample data: {str(e)}")
+        log.append(f"Error loading sample data: {e!s}")
         return "\n".join(log)
 
     # Step 2: Load the standard curve data
@@ -261,7 +283,7 @@ def analyze_atp_luminescence_assay(
         std_curve_data = pd.read_csv(standard_curve_file)
         log.append(f"Successfully loaded standard curve from {standard_curve_file}")
     except Exception as e:
-        log.append(f"Error loading standard curve data: {str(e)}")
+        log.append(f"Error loading standard curve data: {e!s}")
         return "\n".join(log)
 
     # Step 3: Generate standard curve equation (linear regression)
@@ -270,18 +292,22 @@ def analyze_atp_luminescence_assay(
         x = std_curve_data["Luminescence_Value"]
         y = std_curve_data["ATP_Concentration"]
         slope, intercept = np.polyfit(x, y, 1)
-        log.append(f"Standard curve equation: ATP_Concentration = {slope:.6f} × Luminescence + {intercept:.6f}")
+        log.append(
+            f"Standard curve equation: ATP_Concentration = {slope:.6f} × Luminescence + {intercept:.6f}"
+        )
     except Exception as e:
-        log.append(f"Error generating standard curve: {str(e)}")
+        log.append(f"Error generating standard curve: {e!s}")
         return "\n".join(log)
 
     # Step 4: Calculate ATP concentrations for samples
     log.append("\nStep 4: Calculating ATP concentrations for samples")
     try:
-        sample_data["ATP_Concentration_nM"] = slope * sample_data["Luminescence_Value"] + intercept
+        sample_data["ATP_Concentration_nM"] = (
+            slope * sample_data["Luminescence_Value"] + intercept
+        )
         log.append("ATP concentrations calculated for all samples")
     except Exception as e:
-        log.append(f"Error calculating ATP concentrations: {str(e)}")
+        log.append(f"Error calculating ATP concentrations: {e!s}")
         return "\n".join(log)
 
     # Step 5: Normalize ATP concentrations
@@ -292,7 +318,13 @@ def analyze_atp_luminescence_assay(
         try:
             if isinstance(normalization_data, str):
                 norm_data = pd.read_csv(normalization_data)
-                norm_dict = dict(zip(norm_data["Sample_ID"], norm_data[normalization_method], strict=False))
+                norm_dict = dict(
+                    zip(
+                        norm_data["Sample_ID"],
+                        norm_data[normalization_method],
+                        strict=False,
+                    )
+                )
             else:
                 norm_dict = normalization_data
 
@@ -309,12 +341,16 @@ def analyze_atp_luminescence_assay(
                             row["ATP_Concentration_nM"] / norm_dict[sample_id]
                         )
 
-            log.append(f"Successfully normalized ATP concentrations by {normalization_method}")
+            log.append(
+                f"Successfully normalized ATP concentrations by {normalization_method}"
+            )
         except Exception as e:
-            log.append(f"Error during normalization: {str(e)}")
+            log.append(f"Error during normalization: {e!s}")
             log.append("Continuing with unnormalized ATP concentrations")
     else:
-        log.append("No normalization data provided. Reporting unnormalized ATP concentrations.")
+        log.append(
+            "No normalization data provided. Reporting unnormalized ATP concentrations."
+        )
 
     # Step 6: Save results
     output_file = "atp_measurement_results.csv"
@@ -322,7 +358,7 @@ def analyze_atp_luminescence_assay(
         sample_data.to_csv(output_file, index=False)
         log.append(f"\nStep 6: Results saved to {output_file}")
     except Exception as e:
-        log.append(f"\nStep 6: Error saving results: {str(e)}")
+        log.append(f"\nStep 6: Error saving results: {e!s}")
 
     # Step 7: Summary statistics
     log.append("\nStep 7: Summary of ATP measurement results")
@@ -333,16 +369,28 @@ def analyze_atp_luminescence_assay(
         log.append(f"  Min: {sample_data['ATP_Concentration_nM'].min():.2f}")
         log.append(f"  Max: {sample_data['ATP_Concentration_nM'].max():.2f}")
 
-        if normalization_method == "cell_count" and "ATP_pmol_per_million_cells" in sample_data.columns:
+        if (
+            normalization_method == "cell_count"
+            and "ATP_pmol_per_million_cells" in sample_data.columns
+        ):
             log.append("\nATP per Million Cells (pmol):")
-            log.append(f"  Mean: {sample_data['ATP_pmol_per_million_cells'].mean():.2f}")
-            log.append(f"  Median: {sample_data['ATP_pmol_per_million_cells'].median():.2f}")
-        elif normalization_method == "protein_content" and "ATP_nmol_per_mg_protein" in sample_data.columns:
+            log.append(
+                f"  Mean: {sample_data['ATP_pmol_per_million_cells'].mean():.2f}"
+            )
+            log.append(
+                f"  Median: {sample_data['ATP_pmol_per_million_cells'].median():.2f}"
+            )
+        elif (
+            normalization_method == "protein_content"
+            and "ATP_nmol_per_mg_protein" in sample_data.columns
+        ):
             log.append("\nATP per mg Protein (nmol):")
             log.append(f"  Mean: {sample_data['ATP_nmol_per_mg_protein'].mean():.2f}")
-            log.append(f"  Median: {sample_data['ATP_nmol_per_mg_protein'].median():.2f}")
+            log.append(
+                f"  Median: {sample_data['ATP_nmol_per_mg_protein'].median():.2f}"
+            )
     except Exception as e:
-        log.append(f"Error generating summary statistics: {str(e)}")
+        log.append(f"Error generating summary statistics: {e!s}")
 
     log.append("\nATP Content Measurement Analysis Complete")
 
@@ -393,7 +441,9 @@ def analyze_thrombus_histology(image_path, output_dir="./output"):
 
     # Convert to LAB color space for better color segmentation
     lab_image = color.rgb2lab(rgb_image)
-    log += "- Converted image to LAB color space for improved color-based segmentation\n\n"
+    log += (
+        "- Converted image to LAB color space for improved color-based segmentation\n\n"
+    )
 
     # Step 2: Segment thrombus components based on color characteristics
     log += "## Step 2: Thrombus Component Segmentation\n"
@@ -403,10 +453,9 @@ def analyze_thrombus_histology(image_path, output_dir="./output"):
 
     # Fresh thrombus: typically red (erythrocytes) with blue nuclei (leukocytes)
     # Usually appears as bright red/pink areas with scattered dark blue/purple nuclei
-    fresh_mask = (
-        (lab_image[:, :, 0] > 50)  # Lightness
-        & (lab_image[:, :, 1] > 15)  # a* channel (red component)
-    )
+    fresh_mask = (lab_image[:, :, 0] > 50) & (  # Lightness
+        lab_image[:, :, 1] > 15
+    )  # a* channel (red component)
 
     # Cellular lysis: degraded cellular components, less intense staining
     lysis_mask = (
@@ -419,7 +468,9 @@ def analyze_thrombus_histology(image_path, output_dir="./output"):
     # Endothelialization: endothelial cells lining the thrombus
     # Typically appears as thin, organized cellular layers
     endothel_mask = (
-        (lab_image[:, :, 0] > 40) & (lab_image[:, :, 0] < 70) & (lab_image[:, :, 2] < -5)  # More blue component
+        (lab_image[:, :, 0] > 40)
+        & (lab_image[:, :, 0] < 70)
+        & (lab_image[:, :, 2] < -5)  # More blue component
     )
 
     # Fibroblastic reaction: fibroblasts and collagen deposition
@@ -431,13 +482,17 @@ def analyze_thrombus_histology(image_path, output_dir="./output"):
         & (lab_image[:, :, 2] > 0)  # Less blue
     )
 
-    log += "- Created masks for each thrombus component based on color characteristics\n"
+    log += (
+        "- Created masks for each thrombus component based on color characteristics\n"
+    )
 
     # Step 3: Quantify the components
     log += "\n## Step 3: Component Quantification\n"
 
     # Calculate total pixel count (excluding background)
-    total_pixels = fresh_mask.sum() + lysis_mask.sum() + endothel_mask.sum() + fibro_mask.sum()
+    total_pixels = (
+        fresh_mask.sum() + lysis_mask.sum() + endothel_mask.sum() + fibro_mask.sum()
+    )
 
     # Calculate percentages
     if total_pixels > 0:
@@ -466,7 +521,9 @@ def analyze_thrombus_histology(image_path, output_dir="./output"):
     visualization[fibro_mask] = [255, 255, 0]  # Yellow for fibroblastic reaction
 
     # Save the visualization
-    output_filename = os.path.join(output_dir, f"thrombus_components_{os.path.basename(image_path)}")
+    output_filename = os.path.join(
+        output_dir, f"thrombus_components_{os.path.basename(image_path)}"
+    )
     cv2.imwrite(output_filename, cv2.cvtColor(visualization, cv2.COLOR_RGB2BGR))
 
     log += f"- Visualization saved as: {output_filename}\n"
@@ -505,7 +562,10 @@ def analyze_thrombus_histology(image_path, output_dir="./output"):
 
 
 def analyze_intracellular_calcium_with_rhod2(
-    background_image_path, control_image_path, sample_image_path, output_dir="./output"
+    background_image_path,
+    control_image_path,
+    sample_image_path,
+    output_dir="./output",
 ):
     """Analyzes intracellular calcium concentration using Rhod-2 fluorescent indicator from microscopy images.
 
@@ -529,17 +589,57 @@ def analyze_intracellular_calcium_with_rhod2(
     import os
     from datetime import datetime
 
-    import cv2
-    import matplotlib.pyplot as plt
-    import numpy as np
-
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
 
+    missing = [
+        p
+        for p in (background_image_path, control_image_path, sample_image_path)
+        if not p or not os.path.exists(p)
+    ]
+    if missing:
+        return (
+            "Error: One or more input image paths are missing or not found: "
+            + ", ".join(map(str, missing))
+        )
+
+    try:
+        import cv2
+    except Exception as exc:  # noqa: BLE001
+        return f"Error: OpenCV (cv2) is required for this tool but is not available: {exc!s}"
+
+    background_img = cv2.imread(background_image_path, cv2.IMREAD_GRAYSCALE)
+    control_img = cv2.imread(control_image_path, cv2.IMREAD_GRAYSCALE)
+    sample_img = cv2.imread(sample_image_path, cv2.IMREAD_GRAYSCALE)
+
+    unreadable = [
+        path
+        for path, img in (
+            (background_image_path, background_img),
+            (control_image_path, control_img),
+            (sample_image_path, sample_img),
+        )
+        if img is None
+    ]
+    if unreadable:
+        return (
+            "Error: Failed to read one or more images (unsupported format or unreadable): "
+            + ", ".join(map(str, unreadable))
+        )
+
+    try:
+        import matplotlib.pyplot as plt
+        import numpy as np
+    except Exception as exc:  # noqa: BLE001
+        return (
+            "Error: numpy and matplotlib are required for this tool but are not available: "
+            f"{exc!s}"
+        )
+
     # Step 1: Load images
-    background = cv2.imread(background_image_path, cv2.IMREAD_GRAYSCALE).astype(float)
-    control = cv2.imread(control_image_path, cv2.IMREAD_GRAYSCALE).astype(float)
-    sample = cv2.imread(sample_image_path, cv2.IMREAD_GRAYSCALE).astype(float)
+    background = background_img.astype(float)
+    control = control_img.astype(float)
+    sample = sample_img.astype(float)
 
     # Step 2: Background subtraction
     control_corrected = np.maximum(control - background, 0)
@@ -559,11 +659,17 @@ def analyze_intracellular_calcium_with_rhod2(
     f = sample_intensity
 
     # Guard against division by zero
-    calcium_concentration = float("inf") if f_max == f else kd * (f - f_min) / (f_max - f)
+    calcium_concentration = (
+        float("inf") if f_max == f else kd * (f - f_min) / (f_max - f)
+    )
 
     # Step 5: Generate heatmap visualization of calcium concentration
     plt.figure(figsize=(10, 8))
-    calcium_map = (sample_corrected - control_corrected) / (f_max - control_corrected + 1e-10) * kd
+    calcium_map = (
+        (sample_corrected - control_corrected)
+        / (f_max - control_corrected + 1e-10)
+        * kd
+    )
     plt.imshow(calcium_map, cmap="hot")
     plt.colorbar(label="[Ca²⁺] (nM)")
     plt.title("Intracellular Calcium Concentration Map")
@@ -602,7 +708,9 @@ Analysis complete. The sample shows {calcium_concentration:.2f} nM intracellular
     return log
 
 
-def quantify_corneal_nerve_fibers(image_path, marker_type, output_dir="./output", threshold_method="otsu"):
+def quantify_corneal_nerve_fibers(
+    image_path, marker_type, output_dir="./output", threshold_method="otsu"
+):
     """Quantify the volume/density of immunofluorescence-labeled corneal nerve fibers.
 
     Parameters
@@ -643,12 +751,14 @@ def quantify_corneal_nerve_fibers(image_path, marker_type, output_dir="./output"
         if len(image.shape) > 2:
             image = rgb2gray(image)
     except Exception as e:
-        return f"Error loading image: {str(e)}"
+        return f"Error loading image: {e!s}"
 
     # Step 2: Preprocess the image
     # Normalize to 0-1 range
     image_normalized = image.astype(float)
-    image_normalized = (image_normalized - image_normalized.min()) / (image_normalized.max() - image_normalized.min())
+    image_normalized = (image_normalized - image_normalized.min()) / (
+        image_normalized.max() - image_normalized.min()
+    )
 
     # Step 3: Segment the nerve fibers
     if threshold_method == "otsu":
@@ -743,7 +853,10 @@ Output Files:
 
 
 def segment_and_quantify_cells_in_multiplexed_images(
-    image_path, markers_list, nuclear_channel_index=0, output_dir="./output"
+    image_path,
+    markers_list,
+    nuclear_channel_index=0,
+    output_dir="./output",
 ):
     """Segment cells and quantify protein expression levels from multichannel tissue images.
 
@@ -775,7 +888,7 @@ def segment_and_quantify_cells_in_multiplexed_images(
     # Initialize research log
     log = []
     log.append(
-        f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Starting cell segmentation and protein quantification"
+        f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Starting cell segmentation and protein quantification",
     )
 
     # Create output directory if it doesn't exist
@@ -791,9 +904,7 @@ def segment_and_quantify_cells_in_multiplexed_images(
 
         # Validate image dimensions
         if len(image.shape) < 3:
-            return (
-                "Error: Image should be multichannel with shape (channels, height, width) or (height, width, channels)"
-            )
+            return "Error: Image should be multichannel with shape (channels, height, width) or (height, width, channels)"
 
         # Determine image format
         if image.shape[0] == len(markers_list):
@@ -809,10 +920,12 @@ def segment_and_quantify_cells_in_multiplexed_images(
         else:
             return f"Error: Number of channels in image ({image.shape}) doesn't match markers list length ({len(markers_list)})"
 
-        log.append(f"Processing image with {num_channels} channels, dimensions: {height}x{width}")
+        log.append(
+            f"Processing image with {num_channels} channels, dimensions: {height}x{width}"
+        )
 
     except Exception as e:
-        return f"Error loading image: {str(e)}"
+        return f"Error loading image: {e!s}"
 
     # Segment nuclei
     log.append("Performing nuclear segmentation")
@@ -831,7 +944,9 @@ def segment_and_quantify_cells_in_multiplexed_images(
     # Create cell masks by expanding nuclei
     log.append("Expanding nuclear masks to approximate cell boundaries")
     cell_masks = segmentation.watershed(
-        -ndimage.distance_transform_edt(~binary_nuclei),  # Use ndimage for distance transform
+        -ndimage.distance_transform_edt(
+            ~binary_nuclei
+        ),  # Use ndimage for distance transform
         labeled_nuclei,
         mask=morphology.binary_dilation(binary_nuclei, morphology.disk(10)),
     )
@@ -885,7 +1000,9 @@ def segment_and_quantify_cells_in_multiplexed_images(
     log.append(f"Saved cell segmentation mask to {mask_file}")
 
     # Summarize results
-    log.append(f"Analysis complete. Processed {num_channels} markers across {len(regions)} cells.")
+    log.append(
+        f"Analysis complete. Processed {num_channels} markers across {len(regions)} cells."
+    )
     log.append("Output files:")
     log.append(f"  - Spatial feature table: {results_file}")
     log.append(f"  - Cell segmentation mask: {mask_file}")
@@ -893,7 +1010,9 @@ def segment_and_quantify_cells_in_multiplexed_images(
     return "\n".join(log)
 
 
-def analyze_bone_microct_morphometry(input_file_path, output_dir="./results", threshold_value=None):
+def analyze_bone_microct_morphometry(
+    input_file_path, output_dir="./results", threshold_value=None
+):
     """Analyze bone microarchitecture parameters from 3D micro-CT images.
 
     Performs quantitative analysis of bone microstructure to calculate bone mineral density (BMD),
@@ -947,7 +1066,7 @@ def analyze_bone_microct_morphometry(input_file_path, output_dir="./results", th
         voxel_count = image_data.size
         log.append(f"Total voxels: {voxel_count}")
     except Exception as e:
-        error_msg = f"Error loading data: {str(e)}"
+        error_msg = f"Error loading data: {e!s}"
         log.append(error_msg)
         return "\n".join(log)
 
