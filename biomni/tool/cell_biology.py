@@ -1,4 +1,8 @@
-def quantify_cell_cycle_phases_from_microscopy(image_paths, output_dir="./results"):
+def quantify_cell_cycle_phases_from_microscopy(
+    image_paths,
+    output_dir="./results",
+    input_artifact=None,
+):
     """Quantify the percentage of cells in each cell cycle phase using Calcofluor white stained microscopy images.
 
     This function processes microscopy images where cell walls/septa are stained with Calcofluor white,
@@ -7,9 +11,13 @@ def quantify_cell_cycle_phases_from_microscopy(image_paths, output_dir="./result
     Parameters
     ----------
     image_paths : list of str
-        List of file paths to microscopy images of cells stained with Calcofluor white
+        List of file paths or presigned URLs to microscopy images of cells stained with Calcofluor white.
+        If `input_artifact` is provided, entries are treated as paths within that artifact.
     output_dir : str, optional
         Directory to save results (default: './results')
+    input_artifact : str, optional
+        Hypha artifact reference ("<workspace>/<alias>" or full artifact URL). If provided, the
+        `image_paths` values are treated as file paths inside the artifact.
 
     Returns
     -------
@@ -37,11 +45,19 @@ def quantify_cell_cycle_phases_from_microscopy(image_paths, output_dir="./result
     # Step 1: Process images and segment cells
     log += "## Image Processing and Cell Segmentation\n\n"
 
+    from biomni.utils import materialize_input_file
+
     for i, img_path in enumerate(image_paths):
-        log += f"Processing image {i + 1}/{len(image_paths)}: {os.path.basename(img_path)}\n"
+        local_path = materialize_input_file(
+            file_path=img_path,
+            artifact=input_artifact,
+            artifact_file_path=img_path if input_artifact else None,
+            filename_hint=os.path.basename(str(img_path)),
+        )
+        log += f"Processing image {i + 1}/{len(image_paths)}: {os.path.basename(str(local_path))}\n"
 
         # Load image
-        img = io.imread(img_path)
+        img = io.imread(str(local_path))
 
         # Convert to grayscale if needed
         if len(img.shape) > 2:
@@ -404,13 +420,15 @@ def perform_facs_cell_sorting(
     threshold_min=None,
     threshold_max=None,
     output_file="sorted_cells.csv",
+    input_artifact=None,
 ):
     """Performs Fluorescence-Activated Cell Sorting (FACS) to enrich cell populations based on fluorescence characteristics.
 
     Parameters
     ----------
     cell_suspension_data : str
-        Path to the FCS file containing flow cytometry data
+        Path or presigned URL to the FCS/CSV file containing flow cytometry data.
+        If `input_artifact` is provided, this value is treated as a path inside the artifact.
     fluorescence_parameter : str
         The fluorescence parameter to use for sorting (e.g., 'GFP', 'FITC', 'PE')
     threshold_min : float, optional
@@ -419,6 +437,10 @@ def perform_facs_cell_sorting(
         Maximum threshold for the fluorescence parameter. Cells above this value will be excluded
     output_file : str, optional
         Filename to save the sorted cell population data
+
+    input_artifact : str, optional
+        Hypha artifact reference ("<workspace>/<alias>" or full artifact URL). If provided, the
+        `cell_suspension_data` value is treated as a file path inside the artifact.
 
     Returns
     -------
@@ -434,24 +456,33 @@ def perform_facs_cell_sorting(
     log = "# FACS-based Cell Sorting and Enrichment Research Log\n\n"
 
     try:
+        from biomni.utils import materialize_input_file
+
+        local_cell_suspension_data = materialize_input_file(
+            file_path=cell_suspension_data,
+            artifact=input_artifact,
+            artifact_file_path=cell_suspension_data if input_artifact else None,
+            filename_hint=os.path.basename(str(cell_suspension_data)),
+        )
+
         # Load cell suspension data
         log += "## Loading Cell Suspension Data\n"
         if isinstance(cell_suspension_data, str):
             # If data is provided as a file path
-            if cell_suspension_data.lower().endswith(".fcs"):
+            if str(local_cell_suspension_data).lower().endswith(".fcs"):
                 try:
                     import flowkit as fk
 
-                    fcs_data = fk.Sample(cell_suspension_data)
+                    fcs_data = fk.Sample(str(local_cell_suspension_data))
                     cell_df = pd.DataFrame(fcs_data.get_dataframe())
                     log += f"Successfully loaded FCS file containing {len(cell_df)} cells\n"
                 except ImportError:
                     # Fallback if flowkit is not available
                     log += "FlowKit not available, attempting to load as CSV\n"
-                    cell_df = pd.read_csv(cell_suspension_data)
+                    cell_df = pd.read_csv(str(local_cell_suspension_data))
             else:
                 # Assume CSV or other tabular format
-                cell_df = pd.read_csv(cell_suspension_data)
+                cell_df = pd.read_csv(str(local_cell_suspension_data))
                 log += f"Loaded data file containing {len(cell_df)} cells\n"
         else:
             # Assume data is already a DataFrame
@@ -511,13 +542,15 @@ def analyze_flow_cytometry_immunophenotyping(
     gating_strategy,
     compensation_matrix=None,
     output_dir="./results",
+    input_artifact=None,
 ):
     """Analyze flow cytometry data to identify and quantify specific cell populations based on surface markers.
 
     Parameters
     ----------
     fcs_file_path : str
-        Path to the FCS file containing flow cytometry data
+        Path or presigned URL to the FCS file containing flow cytometry data.
+        If `input_artifact` is provided, this value is treated as a path inside the artifact.
     gating_strategy : dict
         Dictionary defining the gating strategy. Each key is a population name, and each value is a list of tuples
         (marker, operator, threshold). For example: {'HSCs': [('Lin', '<', 100), ('Sca1', '>', 1000), ...]}
@@ -525,6 +558,10 @@ def analyze_flow_cytometry_immunophenotyping(
         Spillover/compensation matrix to correct for fluorescence overlap
     output_dir : str, optional
         Directory to save the results
+
+    input_artifact : str, optional
+        Hypha artifact reference ("<workspace>/<alias>" or full artifact URL). If provided, the
+        `fcs_file_path` value is treated as a file path inside the artifact.
 
     Returns
     -------
@@ -541,16 +578,25 @@ def analyze_flow_cytometry_immunophenotyping(
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    if not os.path.exists(fcs_file_path):
+    from biomni.utils import materialize_input_file
+
+    local_fcs_file_path = materialize_input_file(
+        file_path=fcs_file_path,
+        artifact=input_artifact,
+        artifact_file_path=fcs_file_path if input_artifact else None,
+        filename_hint=os.path.basename(str(fcs_file_path)),
+    )
+
+    if not os.path.exists(local_fcs_file_path):
         return (
             "Flow Cytometry Analysis Log\n"
             "==========================\n"
-            f"Error: FCS file not found at path: {fcs_file_path}\n"
+            f"Error: FCS file not found at path: {local_fcs_file_path}\n"
             "Tip: Provide a path that exists inside the service container (e.g. under /data if mounted).\n"
         )
 
     # Load the FCS file
-    sample = FCMeasurement(ID="Sample", datafile=fcs_file_path)
+    sample = FCMeasurement(ID="Sample", datafile=str(local_fcs_file_path))
 
     # Apply compensation if provided
     if compensation_matrix is not None:
@@ -559,7 +605,7 @@ def analyze_flow_cytometry_immunophenotyping(
     # Initialize log
     log = "Flow Cytometry Analysis Log\n"
     log += "==========================\n"
-    log += f"File analyzed: {os.path.basename(fcs_file_path)}\n"
+    log += f"File analyzed: {os.path.basename(str(local_fcs_file_path))}\n"
     log += f"Total events: {len(sample)}\n\n"
 
     # Create a dictionary to store population counts
@@ -623,18 +669,27 @@ def analyze_flow_cytometry_immunophenotyping(
 
 
 def analyze_mitochondrial_morphology_and_potential(
-    morphology_image_path, potential_image_path, output_dir="./output"
+    morphology_image_path,
+    potential_image_path,
+    output_dir="./output",
+    input_artifact=None,
 ):
     """Quantifies metrics of mitochondrial morphology and membrane potential from fluorescence microscopy images.
 
     Parameters
     ----------
     morphology_image_path : str
-        Path to the fluorescence microscopy image showing mitochondrial morphology (e.g., MTS-GFP)
+        Path or presigned URL to the fluorescence microscopy image showing mitochondrial morphology (e.g., MTS-GFP).
+        If `input_artifact` is provided, this value is treated as a path inside the artifact.
     potential_image_path : str
-        Path to the fluorescence microscopy image showing mitochondrial membrane potential (e.g., TMRE staining)
+        Path or presigned URL to the fluorescence microscopy image showing mitochondrial membrane potential (e.g., TMRE staining).
+        If `input_artifact` is provided, this value is treated as a path inside the artifact.
     output_dir : str, optional
         Directory to save output files, default is "./output"
+
+    input_artifact : str, optional
+        Hypha artifact reference ("<workspace>/<alias>" or full artifact URL). If provided, the
+        `morphology_image_path` and `potential_image_path` values are treated as file paths inside the artifact.
 
     Returns
     -------
@@ -659,13 +714,28 @@ def analyze_mitochondrial_morphology_and_potential(
     )
     log.append("=" * 50)
 
+    from biomni.utils import materialize_input_file
+
+    local_morphology_image_path = materialize_input_file(
+        file_path=morphology_image_path,
+        artifact=input_artifact,
+        artifact_file_path=morphology_image_path if input_artifact else None,
+        filename_hint=os.path.basename(str(morphology_image_path)),
+    )
+    local_potential_image_path = materialize_input_file(
+        file_path=potential_image_path,
+        artifact=input_artifact,
+        artifact_file_path=potential_image_path if input_artifact else None,
+        filename_hint=os.path.basename(str(potential_image_path)),
+    )
+
     # Load images
     try:
-        morph_img = io.imread(morphology_image_path)
-        pot_img = io.imread(potential_image_path)
+        morph_img = io.imread(str(local_morphology_image_path))
+        pot_img = io.imread(str(local_potential_image_path))
 
-        log.append(f"Successfully loaded morphology image: {morphology_image_path}")
-        log.append(f"Successfully loaded potential image: {potential_image_path}")
+        log.append(f"Successfully loaded morphology image: {local_morphology_image_path}")
+        log.append(f"Successfully loaded potential image: {local_potential_image_path}")
         log.append(f"Morphology image shape: {morph_img.shape}")
         log.append(f"Potential image shape: {pot_img.shape}")
     except Exception as e:

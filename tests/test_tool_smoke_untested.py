@@ -233,9 +233,7 @@ async def test_smoke_untested_tools_execute_or_fail_gracefully(
 
     # Some tools are inherently heavy / network-bound; keep the list small and explicit.
     # Prefer adding graceful error handling in the tool implementation over skipping long-term.
-    skip_tools: set[str] = {
-        "query_chatnt",
-    }
+    skip_tools: set[str] = set()
 
     timeout_s = float(os.getenv("BIOMNI_SMOKE_TIMEOUT", "30"))
     # Default concurrency low to avoid overwhelming Hypha or the container.

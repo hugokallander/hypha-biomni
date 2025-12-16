@@ -1,4 +1,9 @@
-def reconstruct_3d_face_from_mri(mri_file_path, output_dir="./output", subject_id="subject", threshold_value=300):
+def reconstruct_3d_face_from_mri(
+    mri_file_path,
+    output_dir="./output",
+    subject_id="subject",
+    threshold_value=300,
+):
     """Generate a 3D model of facial anatomy from MRI scans of the head and neck.
 
     Parameters
@@ -31,7 +36,9 @@ def reconstruct_3d_face_from_mri(mri_file_path, output_dir="./output", subject_i
     os.makedirs(output_dir, exist_ok=True)
 
     log = []
-    log.append(f"3D Facial Reconstruction Log - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    log.append(
+        f"3D Facial Reconstruction Log - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+    )
     log.append(f"Subject ID: {subject_id}")
     log.append(f"MRI Source: {mri_file_path}")
     log.append("-" * 50)
@@ -47,7 +54,7 @@ def reconstruct_3d_face_from_mri(mri_file_path, output_dir="./output", subject_i
         log.append(f"  Loaded MRI data with dimensions: {volume_data.shape}")
         log.append(f"  Data type: {volume_data.dtype}")
     except Exception as e:
-        log.append(f"  Error loading with nibabel: {str(e)}")
+        log.append(f"  Error loading with nibabel: {e!s}")
         log.append("  Attempting to load with SimpleITK...")
 
         try:
@@ -56,7 +63,7 @@ def reconstruct_3d_face_from_mri(mri_file_path, output_dir="./output", subject_i
             volume_data = sitk.GetArrayFromImage(mri_image)
             log.append(f"  Loaded MRI data with dimensions: {volume_data.shape}")
         except Exception as e2:
-            log.append(f"  Failed to load MRI data: {str(e2)}")
+            log.append(f"  Failed to load MRI data: {e2!s}")
             return "\n".join(log)
 
     elapsed = time.time() - start_time
@@ -73,7 +80,11 @@ def reconstruct_3d_face_from_mri(mri_file_path, output_dir="./output", subject_i
 
     # Apply noise reduction filter using SimpleITK
     sitk_image = sitk.GetImageFromArray(normalized_data)
-    smoothed_image = sitk.CurvatureFlow(image1=sitk_image, timeStep=0.125, numberOfIterations=5)
+    smoothed_image = sitk.CurvatureFlow(
+        image1=sitk_image,
+        timeStep=0.125,
+        numberOfIterations=5,
+    )
     smoothed_data = sitk.GetArrayFromImage(smoothed_image)
 
     log.append("  Applied noise reduction filter")
@@ -97,8 +108,14 @@ def reconstruct_3d_face_from_mri(mri_file_path, output_dir="./output", subject_i
     log.append("  Removed small isolated regions")
 
     # Save segmentation mask
-    segmentation_file = os.path.join(output_dir, f"{subject_id}_face_segmentation.nii.gz")
-    sitk.WriteImage(sitk.GetImageFromArray(segmentation.astype(np.uint8)), segmentation_file)
+    segmentation_file = os.path.join(
+        output_dir,
+        f"{subject_id}_face_segmentation.nii.gz",
+    )
+    sitk.WriteImage(
+        sitk.GetImageFromArray(segmentation.astype(np.uint8)),
+        segmentation_file,
+    )
     log.append(f"  Saved segmentation mask to: {segmentation_file}")
 
     elapsed = time.time() - start_time
@@ -111,27 +128,28 @@ def reconstruct_3d_face_from_mri(mri_file_path, output_dir="./output", subject_i
     # Create mesh using marching cubes algorithm
     try:
         verts, faces, normals, values = measure.marching_cubes(segmentation, level=0.5)
-        log.append(f"  Generated mesh with {len(verts)} vertices and {len(faces)} faces")
+        log.append(
+            f"  Generated mesh with {len(verts)} vertices and {len(faces)} faces",
+        )
 
         # Save mesh as OBJ file
         mesh_file = os.path.join(output_dir, f"{subject_id}_face_3d_model.obj")
 
         with open(mesh_file, "w") as f:
             # Write vertices
-            for v in verts:
-                f.write(f"v {v[0]} {v[1]} {v[2]}\n")
+            f.writelines(f"v {v[0]} {v[1]} {v[2]}\n" for v in verts)
 
             # Write vertex normals
-            for n in normals:
-                f.write(f"vn {n[0]} {n[1]} {n[2]}\n")
+            f.writelines(f"vn {n[0]} {n[1]} {n[2]}\n" for n in normals)
 
             # Write faces (OBJ uses 1-indexed vertices)
-            for face in faces:
-                f.write(f"f {face[0] + 1} {face[1] + 1} {face[2] + 1}\n")
+            f.writelines(
+                f"f {face[0] + 1} {face[1] + 1} {face[2] + 1}\n" for face in faces
+            )
 
         log.append(f"  Saved 3D model to: {mesh_file}")
     except Exception as e:
-        log.append(f"  Error generating mesh: {str(e)}")
+        log.append(f"  Error generating mesh: {e!s}")
 
     elapsed = time.time() - start_time
     log.append(f"  Completed in {elapsed:.2f} seconds")
@@ -214,7 +232,13 @@ def analyze_abr_waveform_p1_metrics(time_ms, amplitude_uv):
     return log
 
 
-def analyze_ciliary_beat_frequency(video_path, roi_count=5, min_freq=0, max_freq=30, output_dir="./"):
+def analyze_ciliary_beat_frequency(
+    video_path,
+    roi_count=5,
+    min_freq=0,
+    max_freq=30,
+    output_dir="./",
+):
     """Analyze ciliary beat frequency from high-speed video microscopy data using FFT analysis.
 
     Parameters
@@ -249,7 +273,9 @@ def analyze_ciliary_beat_frequency(video_path, roi_count=5, min_freq=0, max_freq
 
     # Initialize research log
     log = []
-    log.append(f"CILIARY BEAT FREQUENCY ANALYSIS - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    log.append(
+        f"CILIARY BEAT FREQUENCY ANALYSIS - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+    )
     log.append(f"Video file: {video_path}")
 
     # Open the video file
@@ -353,16 +379,25 @@ def analyze_ciliary_beat_frequency(video_path, roi_count=5, min_freq=0, max_freq
 
         # Save results to CSV
         results_file = os.path.join(output_dir, "cbf_results.csv")
-        df = pd.DataFrame({"ROI": range(1, len(frequencies) + 1), "Beat_Frequency_Hz": frequencies})
+        df = pd.DataFrame(
+            {"ROI": range(1, len(frequencies) + 1), "Beat_Frequency_Hz": frequencies},
+        )
         df.to_csv(results_file, index=False)
         log.append(f"\nDetailed frequency data saved to: {results_file}")
     else:
-        log.append("\nNo valid ciliary beat frequencies detected in the specified range")
+        log.append(
+            "\nNo valid ciliary beat frequencies detected in the specified range",
+        )
 
     return "\n".join(log)
 
 
-def analyze_protein_colocalization(channel1_path, channel2_path, output_dir="./output", threshold_method="otsu"):
+def analyze_protein_colocalization(
+    channel1_path,
+    channel2_path,
+    output_dir="./output",
+    threshold_method="otsu",
+):
     """Analyze colocalization between two fluorescently labeled proteins in microscopy images.
 
     Parameters
@@ -433,7 +468,10 @@ def analyze_protein_colocalization(channel1_path, channel2_path, output_dir="./o
     # Calculate Pearson's correlation coefficient (above threshold)
     combined_mask = np.logical_or(mask1, mask2)
     if np.sum(combined_mask) > 0:
-        pearson_masked = stats.pearsonr(img1_norm[combined_mask].flatten(), img2_norm[combined_mask].flatten())[0]
+        pearson_masked = stats.pearsonr(
+            img1_norm[combined_mask].flatten(),
+            img2_norm[combined_mask].flatten(),
+        )[0]
     else:
         pearson_masked = 0
 
@@ -472,7 +510,13 @@ def analyze_protein_colocalization(channel1_path, channel2_path, output_dir="./o
 
     # Plot scatter plot of pixel intensities
     plt.subplot(2, 2, 4)
-    plt.hexbin(img1_norm.flatten(), img2_norm.flatten(), gridsize=50, cmap="viridis", mincnt=1)
+    plt.hexbin(
+        img1_norm.flatten(),
+        img2_norm.flatten(),
+        gridsize=50,
+        cmap="viridis",
+        mincnt=1,
+    )
     plt.xlabel("Channel 1 Intensity")
     plt.ylabel("Channel 2 Intensity")
     plt.title("Intensity Correlation")
@@ -607,10 +651,15 @@ def perform_cosinor_analysis(time_data, physiological_data, period=24.0):
         return log
 
     except Exception as e:
-        return f"Error in cosinor analysis: {str(e)}"
+        return f"Error in cosinor analysis: {e!s}"
 
 
-def calculate_brain_adc_map(dwi_file_path, b_values, output_path="adc_map.nii.gz", mask_file_path=None):
+def calculate_brain_adc_map(
+    dwi_file_path,
+    b_values,
+    output_path="adc_map.nii.gz",
+    mask_file_path=None,
+):
     """Calculate Apparent Diffusion Coefficient (ADC) map from diffusion-weighted MRI data.
 
     This function fits the DW-MRI data to the monoexponential diffusion model:
@@ -662,8 +711,13 @@ def calculate_brain_adc_map(dwi_file_path, b_values, output_path="adc_map.nii.gz
         research_log += "Step 2: No mask provided, processing all voxels\n"
         # Create a mask where signal in the baseline image is above a threshold
         baseline_idx = np.argmin(b_values)  # Typically b=0 image
-        mask_data = dwi_data[:, :, :, baseline_idx] > np.mean(dwi_data[:, :, :, baseline_idx]) * 0.1
-        research_log += f"- Created automatic mask with {np.sum(mask_data)} voxels to process\n\n"
+        mask_data = (
+            dwi_data[:, :, :, baseline_idx]
+            > np.mean(dwi_data[:, :, :, baseline_idx]) * 0.1
+        )
+        research_log += (
+            f"- Created automatic mask with {np.sum(mask_data)} voxels to process\n\n"
+        )
 
     # Step 3: Define the monoexponential diffusion model
     research_log += "Step 3: Fitting data to monoexponential diffusion model\n"
@@ -710,7 +764,9 @@ def calculate_brain_adc_map(dwi_file_path, b_values, output_path="adc_map.nii.gz
                         # If fitting fails, set ADC to 0
                         adc_map[x, y, z] = 0
 
-    research_log += f"- Successfully processed {processed_voxels} out of {total_voxels} voxels\n\n"
+    research_log += (
+        f"- Successfully processed {processed_voxels} out of {total_voxels} voxels\n\n"
+    )
 
     # Step 5: Save ADC map
     research_log += "Step 5: Saving ADC map\n"
@@ -732,7 +788,10 @@ def calculate_brain_adc_map(dwi_file_path, b_values, output_path="adc_map.nii.gz
 
     research_log += "\nBrain water diffusion mapping completed successfully.\n"
 
-    return research_log
+    from biomni.utils import publish_output_file_as_url
+
+    url = publish_output_file_as_url(output_path, mode="rb")
+    return {"url": url, "log": research_log}
 
 
 def analyze_endolysosomal_calcium_dynamics(
@@ -803,7 +862,8 @@ def analyze_endolysosomal_calcium_dynamics(
             response_time = None
 
         # Calculate area under the curve (Ca2+ load)
-        auc = np.trapezoid(normalized_values - 1, time_points)
+        trapezoid = getattr(np, "trapezoid", np.trapz)
+        auc = trapezoid(normalized_values - 1, time_points)
 
         # Calculate decay time (time to return to 50% of peak)
         if max_peak_idx < len(normalized_values) - 1:
@@ -824,7 +884,8 @@ def analyze_endolysosomal_calcium_dynamics(
         max_peak_value = None
         max_peak_time = None
         response_time = None
-        auc = np.trapezoid(normalized_values - 1, time_points)
+        trapezoid = getattr(np, "trapezoid", np.trapz)
+        auc = trapezoid(normalized_values - 1, time_points)
         decay_time = None
 
     # Calculate coefficient of variation to measure Ca2+ fluctuations
@@ -840,7 +901,9 @@ def analyze_endolysosomal_calcium_dynamics(
         f.write(f"Number of detected Ca2+ peaks: {len(peaks)}\n")
 
         if max_peak_value is not None:
-            f.write(f"Maximum Ca2+ peak: {max_peak_value:.2f} (normalized to baseline)\n")
+            f.write(
+                f"Maximum Ca2+ peak: {max_peak_value:.2f} (normalized to baseline)\n",
+            )
             f.write(f"Time of maximum peak: {max_peak_time:.2f} seconds\n")
 
         if response_time is not None:
@@ -854,8 +917,10 @@ def analyze_endolysosomal_calcium_dynamics(
 
         if len(peaks) > 0:
             f.write("All detected peaks (time, normalized intensity):\n")
-            for i, peak_idx in enumerate(peaks):
-                f.write(f"  Peak {i + 1}: {time_points[peak_idx]:.2f}s, {normalized_values[peak_idx]:.2f}\n")
+            f.writelines(
+                f"  Peak {i + 1}: {time_points[peak_idx]:.2f}s, {normalized_values[peak_idx]:.2f}\n"
+                for i, peak_idx in enumerate(peaks)
+            )
 
     # Generate research log
     log = f"""
@@ -883,10 +948,18 @@ RESULTS:
 Detailed numerical results saved to: {output_file}
 """
 
-    return log
+    from biomni.utils import publish_output_file_as_url
+
+    url = publish_output_file_as_url(output_file, mode="rb")
+    return {"url": url, "log": log}
 
 
-def analyze_fatty_acid_composition_by_gc(gc_data_file, tissue_type, sample_id, output_directory="./results"):
+def analyze_fatty_acid_composition_by_gc(
+    gc_data_file,
+    tissue_type,
+    sample_id,
+    output_directory="./results",
+):
     """Analyzes fatty acid composition in tissue samples using gas chromatography data.
 
     Parameters
@@ -929,7 +1002,7 @@ def analyze_fatty_acid_composition_by_gc(gc_data_file, tissue_type, sample_id, o
         log += f"  - Successfully loaded data from {gc_data_file}\n"
         log += f"  - Data contains {len(gc_data)} data points\n\n"
     except Exception as e:
-        log += f"  - Error loading data: {str(e)}\n"
+        log += f"  - Error loading data: {e!s}\n"
         return log
 
     log += "Step 2: Identifying fatty acid peaks\n"
@@ -955,7 +1028,10 @@ def analyze_fatty_acid_composition_by_gc(gc_data_file, tissue_type, sample_id, o
 
     identified_peaks = {}
     for (rt_min, rt_max), fatty_acid in fatty_acid_standards.items():
-        peaks_in_range = gc_data[(gc_data["retention_time"] >= rt_min) & (gc_data["retention_time"] <= rt_max)]
+        peaks_in_range = gc_data[
+            (gc_data["retention_time"] >= rt_min)
+            & (gc_data["retention_time"] <= rt_max)
+        ]
         area = peaks_in_range["peak_area"].sum()
         percentage = (area / total_area) * 100 if area > 0 else 0.0
         identified_peaks[fatty_acid] = {"area": area, "percentage": percentage}
@@ -970,14 +1046,19 @@ def analyze_fatty_acid_composition_by_gc(gc_data_file, tissue_type, sample_id, o
             {
                 "Fatty Acid": list(identified_peaks),
                 "Peak Area": [identified_peaks[fa]["area"] for fa in identified_peaks],
-                "Percentage (%)": [identified_peaks[fa]["percentage"] for fa in identified_peaks],
-            }
+                "Percentage (%)": [
+                    identified_peaks[fa]["percentage"] for fa in identified_peaks
+                ],
+            },
         )
         .sort_values("Percentage (%)", ascending=False)
         .reset_index(drop=True)
     )
 
-    output_file = os.path.join(output_directory, f"{sample_id}_{tissue_type}_fatty_acid_composition.csv")
+    output_file = os.path.join(
+        output_directory,
+        f"{sample_id}_{tissue_type}_fatty_acid_composition.csv",
+    )
     results.to_csv(output_file, index=False)
     log += f"  - Results saved to: {output_file}\n\n"
 
@@ -997,7 +1078,9 @@ def analyze_fatty_acid_composition_by_gc(gc_data_file, tissue_type, sample_id, o
         unsaturated = [fa for fa in identified_peaks if fa not in saturated]
 
         saturated_total = sum(identified_peaks[fa]["percentage"] for fa in saturated)
-        unsaturated_total = sum(identified_peaks[fa]["percentage"] for fa in unsaturated)
+        unsaturated_total = sum(
+            identified_peaks[fa]["percentage"] for fa in unsaturated
+        )
 
         if unsaturated_total > 0:
             sat_unsat_ratio = saturated_total / unsaturated_total
@@ -1012,7 +1095,11 @@ def analyze_fatty_acid_composition_by_gc(gc_data_file, tissue_type, sample_id, o
     return log
 
 
-def analyze_hemodynamic_data(pressure_data, sampling_rate, output_file="hemodynamic_results.csv"):
+def analyze_hemodynamic_data(
+    pressure_data,
+    sampling_rate,
+    output_file="hemodynamic_results.csv",
+):
     """Analyzes raw blood pressure data to calculate key hemodynamic parameters.
 
     Parameters
@@ -1038,13 +1125,18 @@ def analyze_hemodynamic_data(pressure_data, sampling_rate, output_file="hemodyna
     # Apply a bandpass filter to remove noise while preserving the physiological signal
     nyquist_freq = sampling_rate / 2
     low_cutoff = 0.5 / nyquist_freq  # 0.5 Hz (to preserve slow components)
-    high_cutoff = 10 / nyquist_freq  # 10 Hz (to preserve fast components but remove noise)
+    high_cutoff = (
+        10 / nyquist_freq
+    )  # 10 Hz (to preserve fast components but remove noise)
     b, a = signal.butter(2, [low_cutoff, high_cutoff], btype="band")
     filtered_data = signal.filtfilt(b, a, pressure_data)
 
     # Step 2: Find peaks (systolic) and troughs (diastolic)
     # For systolic peaks
-    peaks, _ = signal.find_peaks(filtered_data, distance=sampling_rate * 0.5)  # Minimum distance between peaks
+    peaks, _ = signal.find_peaks(
+        filtered_data,
+        distance=sampling_rate * 0.5,
+    )  # Minimum distance between peaks
 
     # For diastolic troughs (looking for minima between systolic peaks)
     valleys = []
@@ -1077,7 +1169,7 @@ def analyze_hemodynamic_data(pressure_data, sampling_rate, output_file="hemodyna
             "Parameter": ["SBP", "DBP", "MAP", "HR"],
             "Value": [sbp, dbp, map_value, heart_rate],
             "Unit": ["mmHg", "mmHg", "mmHg", "bpm"],
-        }
+        },
     )
     results_df.to_csv(output_file, index=False)
 
@@ -1093,10 +1185,18 @@ def analyze_hemodynamic_data(pressure_data, sampling_rate, output_file="hemodyna
 4. Results saved to {output_file}
 """
 
-    return log
+    from biomni.utils import publish_output_file_as_url
+
+    url = publish_output_file_as_url(output_file, mode="rb")
+    return {"url": url, "log": log}
 
 
-def simulate_thyroid_hormone_pharmacokinetics(parameters, initial_conditions, time_span=(0, 24), time_points=100):
+def simulate_thyroid_hormone_pharmacokinetics(
+    parameters,
+    initial_conditions,
+    time_span=(0, 24),
+    time_points=100,
+):
     """Simulates the transport and binding of thyroid hormones across different tissue compartments
     using an ODE-based pharmacokinetic model.
 
@@ -1160,29 +1260,43 @@ def simulate_thyroid_hormone_pharmacokinetics(parameters, initial_conditions, ti
                     if rate_key in transport_rates:
                         # Transport out of blood
                         dydt[blood_idx] -= (
-                            transport_rates[rate_key] * species["T4_blood_free"] / volumes.get("blood", 1)
+                            transport_rates[rate_key]
+                            * species["T4_blood_free"]
+                            / volumes.get("blood", 1)
                         )
                         # Transport into tissue
                         dydt[tissue_idx] += (
-                            transport_rates[rate_key] * species["T4_blood_free"] / volumes.get(tissue, 1)
+                            transport_rates[rate_key]
+                            * species["T4_blood_free"]
+                            / volumes.get(tissue, 1)
                         )
 
         # Protein binding in blood (example)
-        if "T4_blood_free" in species and "TBG_blood" in species and "T4_TBG_complex" in species:
+        if (
+            "T4_blood_free" in species
+            and "TBG_blood" in species
+            and "T4_TBG_complex" in species
+        ):
             free_idx = species_names.index("T4_blood_free")
             protein_idx = species_names.index("TBG_blood")
             complex_idx = species_names.index("T4_TBG_complex")
 
             # Association
             if "k_on_T4_TBG" in binding_constants:
-                association = binding_constants["k_on_T4_TBG"] * species["T4_blood_free"] * species["TBG_blood"]
+                association = (
+                    binding_constants["k_on_T4_TBG"]
+                    * species["T4_blood_free"]
+                    * species["TBG_blood"]
+                )
                 dydt[free_idx] -= association
                 dydt[protein_idx] -= association
                 dydt[complex_idx] += association
 
             # Dissociation
             if "k_off_T4_TBG" in binding_constants:
-                dissociation = binding_constants["k_off_T4_TBG"] * species["T4_TBG_complex"]
+                dissociation = (
+                    binding_constants["k_off_T4_TBG"] * species["T4_TBG_complex"]
+                )
                 dydt[free_idx] += dissociation
                 dydt[protein_idx] += dissociation
                 dydt[complex_idx] -= dissociation
@@ -1193,7 +1307,9 @@ def simulate_thyroid_hormone_pharmacokinetics(parameters, initial_conditions, ti
             t3_idx = species_names.index("T3_liver_free")
 
             if "T4_to_T3_liver" in metabolism_rates:
-                conversion = metabolism_rates["T4_to_T3_liver"] * species["T4_liver_free"]
+                conversion = (
+                    metabolism_rates["T4_to_T3_liver"] * species["T4_liver_free"]
+                )
                 dydt[t4_idx] -= conversion
                 dydt[t3_idx] += conversion
 
@@ -1225,9 +1341,7 @@ def simulate_thyroid_hormone_pharmacokinetics(parameters, initial_conditions, ti
         log = "## Thyroid Hormone Pharmacokinetic Simulation Results\n\n"
         log += f"- Simulation time span: {time_span[0]} to {time_span[1]} hours\n"
         log += f"- Number of molecular species modeled: {len(species_names)}\n"
-        log += (
-            f"- Compartments included: {', '.join({name.split('_')[1] for name in species_names if '_' in name})}\n\n"
-        )
+        log += f"- Compartments included: {', '.join({name.split('_')[1] for name in species_names if '_' in name})}\n\n"
 
         log += "### Key Observations:\n"
         # Find peak concentrations and times
@@ -1244,8 +1358,7 @@ def simulate_thyroid_hormone_pharmacokinetics(parameters, initial_conditions, ti
         log += f"\nDetailed concentration profiles saved to: {output_file}\n"
 
         return log
-    else:
-        return f"Simulation failed: {solution.message}"
+    return f"Simulation failed: {solution.message}"
 
 
 def quantify_amyloid_beta_plaques(
@@ -1281,14 +1394,21 @@ def quantify_amyloid_beta_plaques(
         threshold_value = filters.threshold_otsu(smoothed_image)
         binary_image = smoothed_image > threshold_value
     elif threshold_method == "adaptive":
-        block_size = 35 if min(smoothed_image.shape) > 35 else min(smoothed_image.shape) // 2 * 2 + 1
+        block_size = (
+            35
+            if min(smoothed_image.shape) > 35
+            else min(smoothed_image.shape) // 2 * 2 + 1
+        )
         adaptive_thresh = filters.threshold_local(smoothed_image, block_size=block_size)
         binary_image = smoothed_image > adaptive_thresh
     else:
         threshold_value = manual_threshold
         binary_image = smoothed_image > threshold_value
 
-    cleaned_binary = morphology.remove_small_objects(binary_image, min_size=min_plaque_size)
+    cleaned_binary = morphology.remove_small_objects(
+        binary_image,
+        min_size=min_plaque_size,
+    )
     labeled_image = measure.label(cleaned_binary)
     labeled_image = clear_border(labeled_image)
 
@@ -1302,7 +1422,7 @@ def quantify_amyloid_beta_plaques(
                 "Perimeter": region.perimeter,
                 "Mean_Intensity": region.mean_intensity,
                 "Eccentricity": region.eccentricity,
-            }
+            },
         )
 
     total_plaque_area = sum(r["Area"] for r in plaque_data)
@@ -1317,7 +1437,12 @@ def quantify_amyloid_beta_plaques(
         df = pd.DataFrame(plaque_data)
         df.to_csv(csv_filename, index=False)
 
-        colored_labels = color.label2rgb(labeled_image, image=gray_image, bg_label=0, kind="overlay")
+        colored_labels = color.label2rgb(
+            labeled_image,
+            image=gray_image,
+            bg_label=0,
+            kind="overlay",
+        )
         io.imsave(segmented_image_filename, img_as_ubyte(colored_labels))
 
         log = f"""

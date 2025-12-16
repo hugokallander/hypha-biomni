@@ -8,7 +8,11 @@ from difflib import get_close_matches
 
 
 def run_diffdock_with_smiles(
-    pdb_path, smiles_string, local_output_dir, gpu_device=0, use_gpu=True
+    pdb_path,
+    smiles_string,
+    local_output_dir,
+    gpu_device=0,
+    use_gpu=True,
 ):
     try:
         summary = []
@@ -73,7 +77,10 @@ def run_diffdock_with_smiles(
 
         # Execute the Docker command
         result = subprocess.run(
-            run_command, check=False, capture_output=True, text=True
+            run_command,
+            check=False,
+            capture_output=True,
+            text=True,
         )
 
         # Check for errors
@@ -182,7 +189,9 @@ def run_autosite(pdb_file, output_dir, spacing=1.0):
 
 # Function to get TxGNN predictions and return a summarized string output
 def retrieve_topk_repurposing_drugs_from_disease_txgnn(
-    disease_name, data_lake_path, k=5
+    disease_name,
+    data_lake_path,
+    k=5,
 ):
     import os
 
@@ -229,7 +238,10 @@ def retrieve_topk_repurposing_drugs_from_disease_txgnn(
     # Step 2: Fuzzy match the disease name to find the closest match
     possible_diseases = result.keys()
     matched_disease = get_close_matches(
-        disease_name, possible_diseases, n=1, cutoff=0.6
+        disease_name,
+        possible_diseases,
+        n=1,
+        cutoff=0.6,
     )
 
     if not matched_disease:
@@ -277,7 +289,8 @@ def predict_admet_properties(smiles_list, ADMET_model_type="MPNN"):
         from DeepPurpose import CompoundPred, utils
     except Exception:
         subprocess.run(
-            [sys.executable, "-m", "pip", "install", "DeepPurpose"], check=False
+            [sys.executable, "-m", "pip", "install", "DeepPurpose"],
+            check=False,
         )
         from DeepPurpose import CompoundPred, utils
 
@@ -392,13 +405,16 @@ def predict_admet_properties(smiles_list, ADMET_model_type="MPNN"):
 
 # Binding Affinity prediction function with model_type validation
 def predict_binding_affinity_protein_1d_sequence(
-    smiles_list, amino_acid_sequence, affinity_model_type="MPNN-CNN"
+    smiles_list,
+    amino_acid_sequence,
+    affinity_model_type="MPNN-CNN",
 ):
     try:
         from DeepPurpose import DTI, utils
     except Exception:
         subprocess.run(
-            [sys.executable, "-m", "pip", "install", "DeepPurpose"], check=False
+            [sys.executable, "-m", "pip", "install", "DeepPurpose"],
+            check=False,
         )
         from DeepPurpose import DTI, utils
 
@@ -417,7 +433,7 @@ def predict_binding_affinity_protein_1d_sequence(
 
     # Load the pre-trained affinity model
     model_DTI = DTI.model_pretrained(
-        model=affinity_model_type.replace("-", "_") + "_BindingDB"
+        model=affinity_model_type.replace("-", "_") + "_BindingDB",
     )
 
     # Initialize research log string
@@ -448,7 +464,9 @@ def predict_binding_affinity_protein_1d_sequence(
 
 
 def analyze_accelerated_stability_of_pharmaceutical_formulations(
-    formulations, storage_conditions, time_points
+    formulations,
+    storage_conditions,
+    time_points,
 ):
     import numpy as np
     import pandas as pd
@@ -1108,7 +1126,7 @@ def grade_adverse_events_using_vcog_ctcae(clinical_data_file):
 
     # Summarize by symptom type
     symptom_summary = data.groupby("symptom")["vcog_grade"].agg(
-        ["max", "mean", "count"]
+        ["max", "mean", "count"],
     )
     log += "\nSymptom severity summary:\n"
     for symptom, stats in symptom_summary.iterrows():
@@ -1116,7 +1134,7 @@ def grade_adverse_events_using_vcog_ctcae(clinical_data_file):
 
     # Summarize by subject
     subject_summary = data.groupby("subject_id")["vcog_grade"].agg(
-        ["max", "mean", "count"]
+        ["max", "mean", "count"],
     )
     log += f"\nSubjects with adverse events: {len(subject_summary)}\n"
     log += f"Subjects with Grade 3+ events: {len(subject_summary[subject_summary['max'] >= 3])}\n"
@@ -1358,15 +1376,54 @@ def estimate_alpha_particle_radiotherapy_dosimetry(
 
     # Calculate absorbed dose for each target organ
     absorbed_doses = {}
-    s_factors = radiation_parameters["S_factors"]
+    s_factors_raw = radiation_parameters["S_factors"]
+
+    # Hypha RPC inputs should be JSON-serializable; tuple keys won't round-trip.
+    # Accept multiple formats and normalize to dict[tuple[str, str], float].
+    s_factors: dict[tuple[str, str], float] = {}
+    if isinstance(s_factors_raw, dict):
+        for key, value in s_factors_raw.items():
+            src = tgt = None
+            if isinstance(key, (list, tuple)) and len(key) == 2:
+                src, tgt = key
+            elif isinstance(key, str):
+                if "->" in key:
+                    src, tgt = key.split("->", 1)
+                elif "," in key:
+                    src, tgt = key.split(",", 1)
+                elif "|" in key:
+                    src, tgt = key.split("|", 1)
+            if src is None or tgt is None:
+                continue
+            s_factors[(str(src).strip(), str(tgt).strip())] = float(value)
+    elif isinstance(s_factors_raw, list):
+        # Allow list entries like {'source': 'tumor', 'target': 'liver', 'value': 0.2}
+        # or ['tumor', 'liver', 0.2].
+        for entry in s_factors_raw:
+            src = tgt = val = None
+            if isinstance(entry, dict):
+                src = entry.get("source") or entry.get("src")
+                tgt = entry.get("target") or entry.get("tgt")
+                val = entry.get("value")
+            elif isinstance(entry, (list, tuple)) and len(entry) == 3:
+                src, tgt, val = entry
+            if src is None or tgt is None or val is None:
+                continue
+            s_factors[(str(src).strip(), str(tgt).strip())] = float(val)
+    else:
+        raise TypeError(
+            "radiation_parameters['S_factors'] must be a dict or list; "
+            f"got {type(s_factors_raw).__name__}",
+        )
 
     for target_organ in biodistribution_data:
         absorbed_dose = 0
 
         # Sum contributions from all source organs
         for source_organ, cumulated_activity in time_integrated_activity.items():
-            if (source_organ, target_organ) in s_factors:
-                s_value = s_factors[(source_organ, target_organ)]
+            s_key = (source_organ, target_organ)
+            if s_key in s_factors:
+                s_value = s_factors[s_key]
                 organ_contribution = cumulated_activity * conversion_factor * s_value
                 absorbed_dose += organ_contribution
 
@@ -1449,11 +1506,11 @@ def perform_mwas_cyp2c19_metabolizer_status(
             methylation_data = pd.read_csv(methylation_data_path, sep="\t", index_col=0)
         else:
             log.append(
-                "Error: Unsupported file format for methylation data. Please provide a CSV or TSV file."
+                "Error: Unsupported file format for methylation data. Please provide a CSV or TSV file.",
             )
             return "\n".join(log)
         log.append(
-            f"- Successfully loaded methylation data from {methylation_data_path}"
+            f"- Successfully loaded methylation data from {methylation_data_path}",
         )
 
         # Load metabolizer status data
@@ -1461,15 +1518,17 @@ def perform_mwas_cyp2c19_metabolizer_status(
             metabolizer_status_df = pd.read_csv(metabolizer_status_path, index_col=0)
         elif metabolizer_status_path.endswith((".tsv", ".txt")):
             metabolizer_status_df = pd.read_csv(
-                metabolizer_status_path, sep="\t", index_col=0
+                metabolizer_status_path,
+                sep="\t",
+                index_col=0,
             )
         else:
             log.append(
-                "Error: Unsupported file format for metabolizer status. Please provide a CSV or TSV file."
+                "Error: Unsupported file format for metabolizer status. Please provide a CSV or TSV file.",
             )
             return "\n".join(log)
         log.append(
-            f"- Successfully loaded metabolizer status data from {metabolizer_status_path}"
+            f"- Successfully loaded metabolizer status data from {metabolizer_status_path}",
         )
 
         # Convert DataFrame to Series if necessary
@@ -1477,7 +1536,7 @@ def perform_mwas_cyp2c19_metabolizer_status(
             metabolizer_status = metabolizer_status_df.iloc[:, 0]
         else:
             log.append(
-                "Error: Metabolizer status file should contain a single column with status values."
+                "Error: Metabolizer status file should contain a single column with status values.",
             )
             return "\n".join(log)
 
@@ -1490,7 +1549,7 @@ def perform_mwas_cyp2c19_metabolizer_status(
                 covariates = pd.read_csv(covariates_path, sep="\t", index_col=0)
             else:
                 log.append(
-                    "Error: Unsupported file format for covariates. Please provide a CSV or TSV file."
+                    "Error: Unsupported file format for covariates. Please provide a CSV or TSV file.",
                 )
                 return "\n".join(log)
             log.append(f"- Successfully loaded covariates data from {covariates_path}")
@@ -1501,10 +1560,10 @@ def perform_mwas_cyp2c19_metabolizer_status(
     # Step 1: Data preprocessing
     log.append("\n### Data Preprocessing")
     log.append(
-        f"- Methylation data shape: {methylation_data.shape} (samples × CpG sites)"
+        f"- Methylation data shape: {methylation_data.shape} (samples × CpG sites)",
     )
     log.append(
-        f"- Number of samples with metabolizer status: {len(metabolizer_status)}"
+        f"- Number of samples with metabolizer status: {len(metabolizer_status)}",
     )
 
     # Ensure sample IDs match between methylation data and metabolizer status
@@ -1589,7 +1648,7 @@ def perform_mwas_cyp2c19_metabolizer_status(
     # Bonferroni correction
     results_df["adjusted_pvalue"] = results_df["pvalue"] * len(results_df)
     results_df["adjusted_pvalue"] = results_df["adjusted_pvalue"].clip(
-        upper=1.0
+        upper=1.0,
     )  # Ensure p-values don't exceed 1
 
     # Step 4: Identify significant CpG sites
@@ -1598,7 +1657,7 @@ def perform_mwas_cyp2c19_metabolizer_status(
 
     log.append("\n### Results")
     log.append(
-        f"- Number of significant CpG sites (adjusted p < {pvalue_threshold}): {len(significant_sites)}"
+        f"- Number of significant CpG sites (adjusted p < {pvalue_threshold}): {len(significant_sites)}",
     )
 
     if len(significant_sites) > 0:
@@ -1900,7 +1959,9 @@ def analyze_xenograft_tumor_growth_inhibition(
 
         # Perform Tukey's HSD test
         tukey = pairwise_tukeyhsd(
-            endog=final_data[volume_column], groups=final_data[group_column], alpha=0.05
+            endog=final_data[volume_column],
+            groups=final_data[group_column],
+            alpha=0.05,
         )
 
         # Save Tukey results
@@ -1912,7 +1973,8 @@ def analyze_xenograft_tumor_growth_inhibition(
 
         # Summarize significant comparisons
         tukey_df = pd.DataFrame(
-            data=tukey._results_table.data[1:], columns=tukey._results_table.data[0]
+            data=tukey._results_table.data[1:],
+            columns=tukey._results_table.data[0],
         )
 
         sig_pairs = tukey_df[tukey_df["p-adj"] < 0.05]
@@ -2028,7 +2090,8 @@ def analyze_western_blot(
     # Analyze loading control band
     lc_roi = loading_control_band["roi"]
     lc_band = image[
-        lc_roi[1] : lc_roi[1] + lc_roi[3], lc_roi[0] : lc_roi[0] + lc_roi[2]
+        lc_roi[1] : lc_roi[1] + lc_roi[3],
+        lc_roi[0] : lc_roi[0] + lc_roi[2],
     ]
     lc_intensity = np.sum(lc_band)
     results["loading_control"]["intensity"] = lc_intensity
@@ -2055,7 +2118,7 @@ def analyze_western_blot(
     with open(results_file, "w") as f:
         f.write("Protein,Raw Intensity,Relative Expression\n")
         f.write(
-            f"{results['loading_control']['name']},{results['loading_control']['intensity']},1.0\n"
+            f"{results['loading_control']['name']},{results['loading_control']['intensity']},1.0\n",
         )
         f.writelines(
             f"{target['name']},{target['intensity']},{target['relative_expression']:.4f}\n"
@@ -2263,10 +2326,10 @@ def _build_drug_registry_inline(dataframes):
     # Convert sets to lists for pickle serialization
     for drug_id in drug_registry:
         drug_registry[drug_id]["categories"] = list(
-            drug_registry[drug_id]["categories"]
+            drug_registry[drug_id]["categories"],
         )
         drug_registry[drug_id]["interactions"] = list(
-            drug_registry[drug_id]["interactions"]
+            drug_registry[drug_id]["interactions"],
         )
 
     return drug_registry
@@ -2398,7 +2461,10 @@ def _standardize_drug_name(drug_name, name_mapping):
 
 
 def _format_interaction_result(
-    interaction_data, drug_name_a, drug_name_b, include_mechanisms=True
+    interaction_data,
+    drug_name_a,
+    drug_name_b,
+    include_mechanisms=True,
 ):
     """Format interaction results for research log.
 
@@ -2438,7 +2504,10 @@ def _format_interaction_result(
 
 
 def query_drug_interactions(
-    drug_names, interaction_types=None, severity_levels=None, data_lake_path=None
+    drug_names,
+    interaction_types=None,
+    severity_levels=None,
+    data_lake_path=None,
 ):
     """Query drug-drug interactions from DDInter database.
 
@@ -2585,7 +2654,10 @@ def query_drug_interactions(
 
 
 def check_drug_combination_safety(
-    drug_list, include_mechanisms=True, include_management=True, data_lake_path=None
+    drug_list,
+    include_mechanisms=True,
+    include_management=True,
+    data_lake_path=None,
 ):
     """Analyze safety of a drug combination for potential interactions.
 
@@ -2679,7 +2751,7 @@ def check_drug_combination_safety(
                             "drug_a": drug_a,
                             "drug_b": drug_b,
                             "interactions": interactions,
-                        }
+                        },
                     )
 
         # Overall safety assessment
@@ -2761,7 +2833,9 @@ def check_drug_combination_safety(
 
 
 def analyze_interaction_mechanisms(
-    drug_pair, detailed_analysis=True, data_lake_path=None
+    drug_pair,
+    detailed_analysis=True,
+    data_lake_path=None,
 ):
     """Analyze interaction mechanisms between two specific drugs.
 
@@ -2928,7 +3002,10 @@ def analyze_interaction_mechanisms(
 
 
 def find_alternative_drugs_ddinter(
-    target_drug, contraindicated_drugs, therapeutic_class=None, data_lake_path=None
+    target_drug,
+    contraindicated_drugs,
+    therapeutic_class=None,
+    data_lake_path=None,
 ):
     """Find alternative drugs that don't interact with contraindicated drugs.
 
@@ -3155,7 +3232,7 @@ class OpenFDAClient:
         self.time = time
         self.session = requests.Session()
         self.session.headers.update(
-            {"User-Agent": "Biomni-Agent/1.0 (https://biomni.stanford.edu)"}
+            {"User-Agent": "Biomni-Agent/1.0 (https://biomni.stanford.edu)"},
         )
         self.retry_attempts = 3
         self.timeout = 30
@@ -3278,7 +3355,7 @@ class OpenFDAClient:
             except self.requests.exceptions.Timeout:
                 if attempt == self.retry_attempts - 1:
                     raise Exception(
-                        "FDA API request timed out after multiple attempts"
+                        "FDA API request timed out after multiple attempts",
                     ) from None
                 self.time.sleep(2**attempt)  # Exponential backoff
 
@@ -3325,7 +3402,9 @@ class OpenFDAClient:
             }
 
     def query_drug_labels(
-        self, drug_name: str, sections: list[str] | None = None
+        self,
+        drug_name: str,
+        sections: list[str] | None = None,
     ) -> dict:
         """Query FDA drug label information."""
         endpoint = "drug/label"
@@ -3334,7 +3413,9 @@ class OpenFDAClient:
         return self._make_request(endpoint, params)
 
     def query_drug_recalls(
-        self, drug_name: str, classification: list[str] | None = None
+        self,
+        drug_name: str,
+        classification: list[str] | None = None,
     ) -> dict:
         """Query FDA drug recall and enforcement information."""
         endpoint = "drug/enforcement"
@@ -3508,7 +3589,9 @@ def _extract_fda_safety_signals(response_list: list[dict]) -> dict:
 
         # Get top 3 reactions for this drug
         top_reactions = sorted(
-            drug_reactions.items(), key=lambda x: x[1], reverse=True
+            drug_reactions.items(),
+            key=lambda x: x[1],
+            reverse=True,
         )[:3]
         drug_signals[drug_name]["common_reactions"] = [r[0] for r in top_reactions]
 
@@ -3590,7 +3673,9 @@ def _generate_fda_statistics(response_data: dict) -> dict:
 
 
 def _format_adverse_event_summary(
-    response_data: dict, drug_name: str, include_details: bool = True
+    response_data: dict,
+    drug_name: str,
+    include_details: bool = True,
 ) -> str:
     """Format adverse event data into readable summary."""
     if not response_data.get("results"):
@@ -3628,7 +3713,9 @@ def _format_adverse_event_summary(
 
 
 def _format_drug_label_summary(
-    response_data: dict, drug_name: str, sections: list[str] | None = None
+    response_data: dict,
+    drug_name: str,
+    sections: list[str] | None = None,
 ) -> str:
     """Format drug label information into readable summary."""
     if not response_data.get("results"):
@@ -3686,7 +3773,9 @@ def _format_drug_label_summary(
 
 
 def _format_recall_summary(
-    response_data: dict, drug_name: str, include_details: bool = True
+    response_data: dict,
+    drug_name: str,
+    include_details: bool = True,
 ) -> str:
     """Format recall information into structured output."""
     if not response_data.get("results"):
@@ -3769,7 +3858,9 @@ def _format_safety_signal_summary(
     if reaction_patterns:
         summary += "Cross-drug Analysis:\n"
         sorted_reactions = sorted(
-            reaction_patterns.items(), key=lambda x: x[1]["count"], reverse=True
+            reaction_patterns.items(),
+            key=lambda x: x[1]["count"],
+            reverse=True,
         )
 
         for reaction, data in sorted_reactions[:5]:  # Show top 5 reactions
@@ -3837,7 +3928,9 @@ def query_fda_adverse_events(
 
         # Format results with main function title
         formatted_result = _format_adverse_event_summary(
-            response, drug_name, include_details=True
+            response,
+            drug_name,
+            include_details=True,
         )
 
         # Replace title for main function
@@ -3862,7 +3955,8 @@ def query_fda_adverse_events(
             # Add date range info
             if date_range:
                 lines.insert(
-                    insert_index, f"Date range: {date_range[0]} to {date_range[1]}"
+                    insert_index,
+                    f"Date range: {date_range[0]} to {date_range[1]}",
                 )
                 insert_index += 1
 
@@ -3952,12 +4046,15 @@ def check_fda_drug_recalls(
 
         # Query drug recalls
         response = client.query_drug_recalls(
-            standardized_name, classification=classification
+            standardized_name,
+            classification=classification,
         )
 
         # Format results with filter information
         formatted_result = _format_recall_summary(
-            response, drug_name, include_details=True
+            response,
+            drug_name,
+            include_details=True,
         )
 
         # Add filter information to the output
@@ -4030,7 +4127,10 @@ def analyze_fda_safety_signals(
 
         # Format results with comparison period and threshold info
         return _format_safety_signal_summary(
-            signals, valid_drugs, comparison_period, signal_threshold
+            signals,
+            valid_drugs,
+            comparison_period,
+            signal_threshold,
         )
 
     except Exception as e:

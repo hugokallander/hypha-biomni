@@ -4,7 +4,14 @@ FROM mambaorg/micromamba:1.5.7
 ARG MAMBA_DOCKERFILE_ACTIVATE=1
 ARG INSTALL_EXTRAS=1
 ARG GPU=0
+ARG TARGETARCH
+ARG TARGETPLATFORM
 WORKDIR /app
+
+
+# NOTE: Do not override the base image's SHELL.
+# The micromamba image uses a special shell wrapper to activate the env for RUN steps
+# when `MAMBA_DOCKERFILE_ACTIVATE=1`. If we override it, `python` may not be on PATH.
 
 # The official image defines MAMBA_USER (default 'mambauser'); capture it
 ARG MAMBA_USER
@@ -22,20 +29,53 @@ COPY --chown=${MAMBA_USER}:${MAMBA_USER} biomni_env/environment.base.yml /tmp/en
 COPY --chown=${MAMBA_USER}:${MAMBA_USER} biomni_env/environment.extras.yml /tmp/environment.extras.yml
 
 # Install base environment
-RUN micromamba install -y -n base -f /tmp/environment.base.yml && \
+RUN micromamba clean --all --yes && \
+    (micromamba install -y -n base -f /tmp/environment.base.yml || \
+     (echo "[warn] micromamba base install failed; cleaning cache and retrying" && \
+      micromamba clean --all --yes && \
+      micromamba install -y -n base -f /tmp/environment.base.yml)) && \
     micromamba clean --all --yes
 
 # Optionally install extras (heavy) if INSTALL_EXTRAS=1
 RUN if [ "$INSTALL_EXTRAS" = "1" ]; then \
-      micromamba install -y -n base -f /tmp/environment.extras.yml && \
-      micromamba clean --all --yes ; \
-    fi
+            micromamba clean --all --yes && \
+            (micromamba install -y -n base -f /tmp/environment.extras.yml || \
+             (echo "[warn] micromamba extras install failed; cleaning cache and retrying" && \
+                micromamba clean --all --yes && \
+                micromamba install -y -n base -f /tmp/environment.extras.yml)) && \
+            micromamba clean --all --yes ; \
+        fi
 
-# Optional GPU enablement (default CPU-only). Only adds CUDA stack when GPU=1.
-RUN if [ "$GPU" = "1" ]; then \
-      micromamba install -y -n base pytorch torchvision torchaudio pytorch-cuda=12.4 -c pytorch -c nvidia && \
-      micromamba clean --all --yes ; \
-    fi
+# Torch stack (explicit + architecture-aware):
+# - linux/amd64: install via micromamba (CPU or CUDA depending on GPU arg)
+# - linux/arm64 (Apple Silicon builds): conda pytorch channel often lacks torchvision/torchaudio;
+#   install CPU wheels via pip instead.
+RUN echo "[info] TARGETPLATFORM=${TARGETPLATFORM:-unknown} TARGETARCH=${TARGETARCH:-unknown} GPU=${GPU}" && \
+        if [ "${TARGETARCH}" = "arm64" ] || [ "$(uname -m)" = "aarch64" ]; then \
+            if [ "$GPU" = "1" ]; then \
+                echo "[warn] GPU=1 requested on arm64; falling back to CPU torch"; \
+            fi; \
+            micromamba run -n base python -m pip install --no-cache-dir --upgrade pip && \
+            micromamba run -n base python -m pip install --no-cache-dir \
+                --index-url https://download.pytorch.org/whl/cpu \
+                torch torchvision torchaudio; \
+        else \
+            if [ "$GPU" = "1" ]; then \
+                micromamba clean --all --yes && \
+                (micromamba install -y -n base pytorch torchvision torchaudio pytorch-cuda=12.4 -c pytorch -c nvidia -c conda-forge || \
+                 (echo "[warn] micromamba torch(GPU) install failed; cleaning cache and retrying" && \
+                    micromamba clean --all --yes && \
+                    micromamba install -y -n base pytorch torchvision torchaudio pytorch-cuda=12.4 -c pytorch -c nvidia -c conda-forge)) && \
+                micromamba clean --all --yes ; \
+            else \
+                micromamba clean --all --yes && \
+                (micromamba install -y -n base pytorch torchvision torchaudio cpuonly -c pytorch -c conda-forge || \
+                 (echo "[warn] micromamba torch(CPU) install failed; cleaning cache and retrying" && \
+                    micromamba clean --all --yes && \
+                    micromamba install -y -n base pytorch torchvision torchaudio cpuonly -c pytorch -c conda-forge)) && \
+                micromamba clean --all --yes ; \
+            fi; \
+        fi
 
 # Copy project source
 COPY --chown=${MAMBA_USER}:${MAMBA_USER} . /app

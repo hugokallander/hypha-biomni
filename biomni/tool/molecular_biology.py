@@ -1875,7 +1875,11 @@ def design_verification_primers(
             )
 
             # If we found a suitable primer
-            if new_primer:
+            if (
+                new_primer
+                and new_primer.get("success")
+                and new_primer.get("position") is not None
+            ):
                 primer_name = f"New_primer_{len(recommended_primers) + 1}"
 
                 # Calculate coverage

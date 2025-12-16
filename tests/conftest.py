@@ -47,7 +47,7 @@ async def hypha_service(
         "token": os.getenv("HYPHA_TOKEN"),
     }
     server = await connect_to_server(server_config)
-    service = await server.get_service("hypha-agents/biomni")
+    service = await server.get_service("hypha-agents/biomni-test")
 
     yield service
 

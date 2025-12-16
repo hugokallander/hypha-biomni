@@ -17,7 +17,7 @@ async def main(server_url: str, workspace: str, client_id: str | None = None) ->
         server_config["client_id"] = client_id
 
     async with connect_to_server(server_config) as server:
-        service = await server.get_service("hypha-agents/biomni")
+        service = await server.get_service("hypha-agents/biomni-test")
 
         # Example: def query_pubmed(query: str,
         # max_papers: int = 10, max_retries: int = 3) -> str:

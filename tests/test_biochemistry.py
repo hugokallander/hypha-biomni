@@ -88,7 +88,9 @@ class TestBiochemistryTools:
             threshold=0.5,
             output_file="disorder_results.csv",
         )
-        assert result is not None
+        assert isinstance(result, dict)
+        assert result["url"].startswith(("http://", "https://"))
+        assert isinstance(result.get("log"), str)
 
     async def test_calculate_physicochemical_properties(
         self,

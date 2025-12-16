@@ -113,7 +113,9 @@ def optimize_anaerobic_digestion_process(
 
     # Perform optimization
     log += "## Optimization Process\n\n"
-    log += "Performing parameter optimization to find optimal operating conditions...\n\n"
+    log += (
+        "Performing parameter optimization to find optimal operating conditions...\n\n"
+    )
 
     if optimization_method == "rsm":
         # Initial guess (middle of each range)
@@ -135,7 +137,9 @@ def optimize_anaerobic_digestion_process(
         optimal_params = result.x
         optimal_value = -result.fun  # Convert back to positive
 
-        log += f"Genetic algorithm completed after {result.nfev} function evaluations.\n"
+        log += (
+            f"Genetic algorithm completed after {result.nfev} function evaluations.\n"
+        )
         log += f"Optimization success: {result.success}\n"
         log += f"Final optimization message: {result.message}\n\n"
 
@@ -176,7 +180,9 @@ def optimize_anaerobic_digestion_process(
     Z = np.zeros_like(P1)
     for i in range(len(param1_range)):
         for j in range(len(param2_range)):
-            params = list(optimal_params)  # Start with optimal values for other parameters
+            params = list(
+                optimal_params
+            )  # Start with optimal values for other parameters
             params[param1_idx] = param1_range[i]
             params[param2_idx] = param2_range[j]
             Z[j, i] = -model(params)  # Convert back to positive
@@ -232,7 +238,9 @@ def optimize_anaerobic_digestion_process(
         output_minus = -model(params_minus)
 
         # Calculate sensitivity (normalized)
-        sensitivity = abs(output_plus - output_minus) / (2 * delta) * (param / optimal_value)
+        sensitivity = (
+            abs(output_plus - output_minus) / (2 * delta) * (param / optimal_value)
+        )
         sensitivities.append((name, sensitivity))
 
     # Sort sensitivities
@@ -253,7 +261,9 @@ def optimize_anaerobic_digestion_process(
     return log
 
 
-def analyze_arsenic_speciation_hplc_icpms(sample_data, sample_name="Unknown Sample", calibration_data=None):
+def analyze_arsenic_speciation_hplc_icpms(
+    sample_data, sample_name="Unknown Sample", calibration_data=None
+):
     """Analyzes arsenic speciation in liquid samples using HPLC-ICP-MS technique.
 
     Parameters
@@ -367,9 +377,7 @@ def analyze_arsenic_speciation_hplc_icpms(sample_data, sample_name="Unknown Samp
     log += "Detected arsenic species and their concentrations (μg/L):\n\n"
 
     # Create a results file
-    results_filename = (
-        f"arsenic_speciation_results_{sample_name.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-    )
+    results_filename = f"arsenic_speciation_results_{sample_name.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
     results_df.to_csv(results_filename)
 
     log += f"Results have been saved to: {results_filename}\n\n"
@@ -379,7 +387,9 @@ def analyze_arsenic_speciation_hplc_icpms(sample_data, sample_name="Unknown Samp
 
     # Identify predominant species
     for sample_id, species_data in results.items():
-        numeric_concs = {k: v for k, v in species_data.items() if isinstance(v, int | float)}
+        numeric_concs = {
+            k: v for k, v in species_data.items() if isinstance(v, int | float)
+        }
         if numeric_concs:
             predominant_species = max(numeric_concs.items(), key=lambda x: x[1])
             log += f"Sample {sample_id}: Predominant arsenic species is {predominant_species[0]} "
@@ -390,7 +400,9 @@ def analyze_arsenic_speciation_hplc_icpms(sample_data, sample_name="Unknown Samp
     return log
 
 
-def count_bacterial_colonies(image_path, dilution_factor=1, plate_area_cm2=65.0, output_dir="./output"):
+def count_bacterial_colonies(
+    image_path, dilution_factor=1, plate_area_cm2=65.0, output_dir="./output"
+):
     """Count bacterial colonies from an image of agar plate using computer vision techniques.
 
     Parameters
@@ -750,7 +762,7 @@ def enumerate_bacterial_cfu_by_serial_dilution(
                     "Dilution_Factor": dilution_factor**i,
                     "Spot": spot + 1,
                     "CFU_Count": count,
-                }
+                },
             )
 
     # Convert results to dataframe
@@ -767,7 +779,9 @@ def enumerate_bacterial_cfu_by_serial_dilution(
         dilution_data = df[df["Dilution"] == dilution_name]
 
         # Check if counts are numeric (not TMTC)
-        numeric_counts = [c for c in dilution_data["CFU_Count"] if isinstance(c, int | float)]
+        numeric_counts = [
+            c for c in dilution_data["CFU_Count"] if isinstance(c, int | float)
+        ]
 
         if numeric_counts:
             avg_count = sum(numeric_counts) / len(numeric_counts)
@@ -777,8 +791,10 @@ def enumerate_bacterial_cfu_by_serial_dilution(
                         "Dilution": dilution_name,
                         "Dilution_Factor": dilution_factor**i,
                         "Average_CFU": avg_count,
-                        "CFU_per_mL": avg_count * 100 * (dilution_factor**i),  # × 100 to convert 10 μL to mL
-                    }
+                        "CFU_per_mL": avg_count
+                        * 100
+                        * (dilution_factor**i),  # × 100 to convert 10 μL to mL
+                    },
                 )
 
     # Calculate final CFU/mL based on countable dilutions
@@ -851,7 +867,9 @@ def model_bacterial_growth_dynamics(
     t_eval = np.arange(0, simulation_time + time_step, time_step)
 
     # Solve the ODE system
-    solution = solve_ivp(bacterial_dynamics, t_span, [initial_population], t_eval=t_eval, method="RK45")
+    solution = solve_ivp(
+        bacterial_dynamics, t_span, [initial_population], t_eval=t_eval, method="RK45"
+    )
 
     # Extract results
     time_points = solution.t
@@ -864,11 +882,16 @@ def model_bacterial_growth_dynamics(
     # Determine if population reached steady state
     # (defined as less than 1% change in the last 10% of simulation time)
     last_index = int(len(population_size) * 0.9)
-    population_change = abs(population_size[-1] - population_size[last_index]) / population_size[last_index]
+    population_change = (
+        abs(population_size[-1] - population_size[last_index])
+        / population_size[last_index]
+    )
     steady_state_reached = population_change < 0.01
 
     # Save results to CSV
-    results_df = pd.DataFrame({"Time (hours)": time_points, "Population Size": population_size})
+    results_df = pd.DataFrame(
+        {"Time (hours)": time_points, "Population Size": population_size}
+    )
 
     filename = "bacterial_growth_dynamics.csv"
     results_df.to_csv(filename, index=False)
@@ -894,7 +917,9 @@ The complete population dynamics data has been saved to '{filename}'.
     return log
 
 
-def quantify_biofilm_biomass_crystal_violet(od_values, sample_names=None, control_index=0, save_path=None):
+def quantify_biofilm_biomass_crystal_violet(
+    od_values, sample_names=None, control_index=0, save_path=None
+):
     """Quantifies biofilm biomass using crystal violet staining assay data.
 
     Parameters
@@ -943,7 +968,9 @@ def quantify_biofilm_biomass_crystal_violet(od_values, sample_names=None, contro
     normalized_values = od_values - control_value
 
     log += "\n### Normalization:\n"
-    log += f"- Control sample: {sample_names[control_index]} (OD = {control_value:.4f})\n"
+    log += (
+        f"- Control sample: {sample_names[control_index]} (OD = {control_value:.4f})\n"
+    )
     log += "- Normalized values (Control subtracted):\n"
 
     for i, name in enumerate(sample_names):
@@ -976,7 +1003,7 @@ def quantify_biofilm_biomass_crystal_violet(od_values, sample_names=None, contro
             "Sample": sample_names,
             "OD_Value": od_values,
             "Normalized_Value": normalized_values,
-        }
+        },
     )
 
     # Save results if path is provided
@@ -996,7 +1023,9 @@ def quantify_biofilm_biomass_crystal_violet(od_values, sample_names=None, contro
     return log
 
 
-def segment_and_analyze_microbial_cells(image_path, output_dir="./output", min_cell_size=50):
+def segment_and_analyze_microbial_cells(
+    image_path, output_dir="./output", min_cell_size=50
+):
     """Perform automated cell segmentation and quantify morphological metrics from fluorescence microscopy images.
 
     Parameters
@@ -1162,7 +1191,7 @@ def segment_cells_with_deep_learning(
         img = io.imread(image_path)
         log += f"Image loaded successfully. Shape: {img.shape}\n\n"
     except Exception as e:
-        log += f"Error loading image: {str(e)}\n"
+        log += f"Error loading image: {e!s}\n"
         return log
 
     # Prepare image for model
@@ -1181,7 +1210,7 @@ def segment_cells_with_deep_learning(
         model = models.CellposeModel(model_type=model_type, gpu=False)
         log += "Model initialized successfully.\n\n"
     except Exception as e:
-        log += f"Error initializing model: {str(e)}\n"
+        log += f"Error initializing model: {e!s}\n"
         return log
 
     # Run segmentation
@@ -1212,7 +1241,9 @@ def segment_cells_with_deep_learning(
         elif len(results) == 4:
             masks, flows, styles, diams = results  # Original unpacking
         else:
-            raise ValueError(f"Unexpected number of return values from model.eval(): {len(results)}")
+            raise ValueError(
+                f"Unexpected number of return values from model.eval(): {len(results)}"
+            )
 
         if diameter is None:
             log += f"Auto-estimated cell diameter: {diams[0]:.2f} pixels\n"
@@ -1220,7 +1251,7 @@ def segment_cells_with_deep_learning(
         cell_count = len(np.unique(masks)) - 1  # Subtract 1 for background
         log += f"Segmentation complete. Detected {cell_count} cells.\n\n"
     except Exception as e:
-        log += f"Error during segmentation: {str(e)}\n"
+        log += f"Error during segmentation: {e!s}\n"
         return log
 
     # Save results
@@ -1294,6 +1325,12 @@ def simulate_generalized_lotka_volterra_dynamics(
     import pandas as pd
     from scipy.integrate import odeint
 
+    # Coerce JSON-friendly inputs to numpy arrays
+    initial_abundances = np.asarray(initial_abundances, dtype=float)
+    growth_rates = np.asarray(growth_rates, dtype=float)
+    interaction_matrix = np.asarray(interaction_matrix, dtype=float)
+    time_points = np.asarray(time_points, dtype=float)
+
     # Check input dimensions
     n_species = len(initial_abundances)
     if len(growth_rates) != n_species or interaction_matrix.shape != (
@@ -1301,7 +1338,7 @@ def simulate_generalized_lotka_volterra_dynamics(
         n_species,
     ):
         raise ValueError(
-            "Dimensions mismatch: growth_rates and interaction_matrix must match initial_abundances dimensions"
+            "Dimensions mismatch: growth_rates and interaction_matrix must match initial_abundances dimensions",
         )
 
     # Define the gLV differential equations
@@ -1407,7 +1444,9 @@ def predict_rna_secondary_structure(rna_sequence, output_prefix="rna_structure")
 
         f.write("Stem-loop structures:\n")
         for left, right in sorted(pairs):
-            f.write(f"Base pair: {rna_sequence[left]}({left + 1})-{rna_sequence[right]}({right + 1})\n")
+            f.write(
+                f"Base pair: {rna_sequence[left]}({left + 1})-{rna_sequence[right]}({right + 1})\n"
+            )
 
     # Create research log
     log = f"""
@@ -1467,7 +1506,12 @@ def simulate_microbial_population_dynamics(
 
     # Validate inputs
     num_species = len(initial_populations)
-    if not (len(growth_rates) == len(clearance_rates) == len(carrying_capacities) == num_species):
+    if not (
+        len(growth_rates)
+        == len(clearance_rates)
+        == len(carrying_capacities)
+        == num_species
+    ):
         return "Error: All input lists must have the same length (number of species)"
 
     # Initialize tracking variables
@@ -1494,19 +1538,29 @@ def simulate_microbial_population_dynamics(
         # Run simulation until max_time is reached or all populations are extinct
         while time < max_time and np.any(population > 0):
             # Record current state if we've reached the next time point
-            while next_time_point_idx < time_points and time >= time_grid[next_time_point_idx]:
+            while (
+                next_time_point_idx < time_points
+                and time >= time_grid[next_time_point_idx]
+            ):
                 trajectory[:, next_time_point_idx] = population
                 next_time_point_idx += 1
 
             # Calculate event rates
             # Growth rates are adjusted for carrying capacity (logistic growth)
             adjusted_growth_rates = [
-                growth_rates[i] * population[i] * (1 - population[i] / carrying_capacities[i])
-                if population[i] > 0
-                else 0
+                (
+                    growth_rates[i]
+                    * population[i]
+                    * (1 - population[i] / carrying_capacities[i])
+                    if population[i] > 0
+                    else 0
+                )
                 for i in range(num_species)
             ]
-            death_rates = [clearance_rates[i] * population[i] if population[i] > 0 else 0 for i in range(num_species)]
+            death_rates = [
+                clearance_rates[i] * population[i] if population[i] > 0 else 0
+                for i in range(num_species)
+            ]
 
             # Flatten rates for easier processing
             all_rates = adjusted_growth_rates + death_rates
@@ -1525,7 +1579,9 @@ def simulate_microbial_population_dynamics(
                 break
 
             # Select which event occurs
-            event_idx = np.random.choice(len(all_rates), p=np.array(all_rates) / total_rate)
+            event_idx = np.random.choice(
+                len(all_rates), p=np.array(all_rates) / total_rate
+            )
 
             # Apply the event
             if event_idx < num_species:  # Growth event

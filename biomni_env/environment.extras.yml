@@ -25,11 +25,8 @@ dependencies:
   - python-louvain
   - muscle
   - prokka
-  - torchvision
-  - torchaudio
-  - accelerate
-  - cpuonly
-  - pytorch
+  # NOTE: Torch is installed in Dockerfile based on GPU=0/1.
+  # This keeps the extras solve stable across platforms.
   - macs2
   - cnvkit
   - samtools
@@ -56,6 +53,7 @@ dependencies:
       - langchain-community
       - langchain-aws
       - openai
+      - accelerate
       - gradio
       - beautifulsoup4
       - lxml

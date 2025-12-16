@@ -1,4 +1,5 @@
 import ast
+import asyncio
 import enum
 import functools
 import importlib
@@ -12,17 +13,21 @@ import traceback
 import zipfile
 from asyncio.log import logger
 from pathlib import Path
-from typing import Any, ClassVar, NamedTuple
-from urllib.parse import urljoin
+from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple
+from urllib.parse import urljoin, urlparse
 
 import requests
 import tqdm  # Add tqdm for progress bar
 from hypha_artifact import AsyncHyphaArtifact
+from hypha_rpc import connect_to_server
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.messages.base import get_msg_title_repr
 from langchain_core.tools import StructuredTool
 from langchain_core.utils.interactive_env import is_interactive_env
 from pydantic import BaseModel, Field, ValidationError
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 _THIS_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = _THIS_DIR.parent
@@ -30,6 +35,7 @@ if str(PROJECT_ROOT) not in sys.path:  # pragma: no cover
     sys.path.insert(0, str(PROJECT_ROOT))
 BASE_DIR = os.getenv("BIOMNI_DATA_PATH", str(PROJECT_ROOT / "biomni_data"))
 DATA_LAKE_DIR = Path(BASE_DIR) / "data_lake"
+DEFAULT_SERVER_URL = os.getenv("HYPHA_SERVER_URL", "https://hypha.aicell.io")
 
 
 class DatasetTuple(NamedTuple):
@@ -44,6 +50,8 @@ async def download_files(datasets: list[DatasetTuple]) -> None:
     # Determine base directory for data lake (env override -> project root / biomni_data)
     DATA_LAKE_DIR.mkdir(parents=True, exist_ok=True)
     workspace = os.getenv("HYPHA_WORKSPACE")
+    token = os.getenv("HYPHA_TOKEN")
+    server_url = os.getenv("HYPHA_SERVER_URL", DEFAULT_SERVER_URL)
 
     for dataset in datasets:
         local_path = DATA_LAKE_DIR / dataset.file_path
@@ -56,10 +64,338 @@ async def download_files(datasets: list[DatasetTuple]) -> None:
         artifact = AsyncHyphaArtifact(
             artifact_id=artifact_id,
             workspace=workspace,
-            server_url="https://hypha.aicell.io",
+            token=token,
+            server_url=server_url,
         )
 
         await artifact.get(dataset.file_path, str(local_path))
+
+
+async def get_artifact_file_url(
+    *,
+    artifact_id: str | None = None,
+    artifact_alias: str | None = None,
+    file_path: str,
+    mode: str = "rb",
+    version: str | None = None,
+    workspace: str | None = None,
+    token: str | None = None,
+    server_url: str | None = None,
+) -> str:
+    """Return a presigned URL for a file stored in a Hypha artifact.
+
+    This is the preferred way for Biomni tools to "return a file" across the
+    Hypha RPC boundary: write outputs into an artifact, then return the URL.
+
+    Args:
+        artifact_id: Full artifact id (e.g. "<workspace>/<artifact>").
+        artifact_alias: Artifact name within the workspace; used if artifact_id
+            is not provided.
+        file_path: Path within the artifact.
+        mode: File open mode (e.g. "rb" or "r"). Required by hypha-artifact.
+        version: Optional artifact version.
+        workspace/token/server_url: Defaults to HYPHA_* env vars.
+
+    Returns:
+        A presigned URL string.
+
+    """
+    resolved_workspace = workspace or os.getenv("HYPHA_WORKSPACE")
+    resolved_server_url = server_url or os.getenv(
+        "HYPHA_SERVER_URL",
+        DEFAULT_SERVER_URL,
+    )
+    resolved_token = token or os.getenv("HYPHA_TOKEN")
+
+    if artifact_id is None:
+        if not resolved_workspace:
+            raise ValueError(
+                "workspace must be provided (or set HYPHA_WORKSPACE) when using artifact_alias",
+            )
+        if not artifact_alias:
+            raise ValueError("Either artifact_id or artifact_alias must be provided")
+        resolved_artifact_id = f"{resolved_workspace}/{artifact_alias}"
+    else:
+        # Allow passing a full URL (https://<server>/<workspace>/artifacts/<alias>)
+        resolved_server_url, resolved_artifact_id = get_url_and_artifact_id(
+            artifact_id,
+            default_server_url=resolved_server_url,
+        )
+
+    artifact = AsyncHyphaArtifact(
+        artifact_id=resolved_artifact_id,
+        workspace=resolved_workspace,
+        token=resolved_token,
+        server_url=resolved_server_url,
+    )
+    return await artifact.get_file_url(file_path, mode=mode, version=version)
+
+
+def publish_output_file_as_url(
+    local_path: str | Path,
+    *,
+    artifact: str | None = None,
+    artifact_file_path: str | None = None,
+    mode: str = "rb",
+    comment: str | None = None,
+) -> str:
+    """Upload a local file to Hypha S3 and return a presigned URL.
+
+    This uses the 'public/s3-storage' service to store temporary outputs.
+    """
+    local_path = Path(local_path)
+    if not local_path.exists():
+        msg = f"Output file not found: {local_path}"
+        raise FileNotFoundError(msg)
+
+    workspace = os.getenv("HYPHA_WORKSPACE")
+    token = os.getenv("HYPHA_TOKEN")
+    server_url = os.getenv("HYPHA_SERVER_URL", DEFAULT_SERVER_URL)
+
+    # Generate a unique path in S3
+    import uuid
+
+    # Use a folder structure: biomni-temp/<uuid>/<filename>
+    s3_path = f"biomni-temp/{uuid.uuid4()}/{local_path.name}"
+
+    async def _upload_and_presign() -> str:
+        api = await connect_to_server(
+            {"server_url": server_url, "token": token, "workspace": workspace},
+        )
+        s3 = await api.get_service("public/s3-storage")
+        api = await connect_to_server(
+            {
+                "server_url": server_url,
+                "token": token,
+                "workspace": workspace,
+            }
+        )
+        # Get upload URL
+        upload_url = await s3.put_file(s3_path)
+
+        # Upload file
+        with open(local_path, "rb") as f:
+            requests.put(upload_url, data=f).raise_for_status()
+
+        # Get download URL
+        download_url = await s3.get_file(s3_path)
+        return download_url
+
+    return asyncio.run(_upload_and_presign())
+
+
+def materialize_input_file(
+    *,
+    file_path: str | None = None,
+    artifact: str | None = None,
+    artifact_file_path: str | None = None,
+    presigned_url: str | None = None,
+    target_dir: str | Path | None = None,
+    filename_hint: str | None = None,
+) -> Path:
+    """Materialize an input file locally from either artifact or URL.
+
+    Priority:
+    1) presigned_url (or if file_path itself is an http(s) URL)
+    2) artifact + artifact_file_path
+    3) local file_path
+
+    Returns a local filesystem path that exists.
+    """
+    if presigned_url and file_path:
+        raise ValueError("Provide only one of presigned_url or file_path")
+
+    url = presigned_url
+    if url is None and file_path and is_http_url(file_path):
+        url = file_path
+
+    base_dir = (
+        Path(target_dir)
+        if target_dir is not None
+        else Path(tempfile.mkdtemp(prefix="biomni_input_"))
+    )
+    base_dir.mkdir(parents=True, exist_ok=True)
+
+    if url is not None:
+        name = filename_hint
+        if not name:
+            parsed = urlparse(url)
+            name = Path(parsed.path).name or "downloaded_file"
+        return download_http_url(url, base_dir / name)
+
+    if artifact is not None or artifact_file_path is not None:
+        if not artifact or not artifact_file_path:
+            raise ValueError("Both artifact and artifact_file_path are required")
+        name = filename_hint or Path(artifact_file_path).name
+        local_path = base_dir / name
+        asyncio.run(
+            download_artifact_file(
+                artifact=artifact,
+                file_path=artifact_file_path,
+                local_path=local_path,
+            ),
+        )
+        return local_path
+
+    if not file_path:
+        raise ValueError(
+            "No input provided: expected file_path, presigned_url, or artifact+artifact_file_path",
+        )
+
+    local = Path(file_path)
+    if not local.exists():
+        raise FileNotFoundError(f"Input file not found: {file_path}")
+    return local
+
+
+def is_http_url(value: str) -> bool:
+    parsed = urlparse(value)
+    return parsed.scheme in {"http", "https"}
+
+
+def get_url_and_artifact_id(
+    artifact_id: str,
+    *,
+    default_server_url: str | None = None,
+) -> tuple[str, str]:
+    """Parse artifact reference into (server_url, artifact_id).
+
+    Accepts either:
+    - "<workspace>/<alias>"
+    - "https://<server>/<workspace>/artifacts/<alias>"
+
+    This mirrors the pattern you shared, but lets callers override the default
+    server URL.
+    """
+    server_url = default_server_url or DEFAULT_SERVER_URL
+    parsed = urlparse(artifact_id)
+    if parsed.scheme in ("http", "https"):
+        path_parts = parsed.path.lstrip("/").split("/")
+        if len(path_parts) < 3 or path_parts[1] != "artifacts":
+            msg = (
+                "When providing a full URL for artifact, it must be of the form "
+                "'https://<server>/<workspace>/artifacts/<alias>'"
+            )
+            raise ValueError(msg)
+        workspace = path_parts[0]
+        alias = path_parts[2]
+        artifact_id = f"{workspace}/{alias}"
+        server_url = f"{parsed.scheme}://{parsed.netloc}"
+    return server_url, artifact_id
+
+
+def download_http_url(
+    url: str,
+    local_path: str | Path,
+    *,
+    timeout_s: float = 120.0,
+) -> Path:
+    """Download a presigned (or public) URL to a local file path."""
+    local_path = Path(local_path)
+    local_path.parent.mkdir(parents=True, exist_ok=True)
+    with requests.get(url, stream=True, timeout=timeout_s) as r:
+        r.raise_for_status()
+        with local_path.open("wb") as f:
+            for chunk in r.iter_content(chunk_size=1024 * 1024):
+                if chunk:
+                    f.write(chunk)
+    return local_path
+
+
+async def download_artifact_file(
+    *,
+    artifact: str,
+    file_path: str,
+    local_path: str | Path,
+    workspace: str | None = None,
+    token: str | None = None,
+    server_url: str | None = None,
+) -> Path:
+    """Download a file from a Hypha artifact into the local filesystem."""
+    resolved_workspace = workspace or os.getenv("HYPHA_WORKSPACE")
+    resolved_token = token or os.getenv("HYPHA_TOKEN")
+    resolved_server_url = server_url or os.getenv(
+        "HYPHA_SERVER_URL",
+        DEFAULT_SERVER_URL,
+    )
+
+    resolved_server_url, resolved_artifact_id = get_url_and_artifact_id(
+        artifact,
+        default_server_url=resolved_server_url,
+    )
+    artifact_client = AsyncHyphaArtifact(
+        artifact_id=resolved_artifact_id,
+        workspace=resolved_workspace,
+        token=resolved_token,
+        server_url=resolved_server_url,
+    )
+    local_path = Path(local_path)
+    local_path.parent.mkdir(parents=True, exist_ok=True)
+    await artifact_client.get(file_path, str(local_path))
+    return local_path
+
+
+def materialize_input_file(
+    *,
+    file_path: str | None = None,
+    artifact: str | None = None,
+    artifact_file_path: str | None = None,
+    presigned_url: str | None = None,
+    target_dir: str | Path | None = None,
+    filename_hint: str | None = None,
+) -> Path:
+    """Materialize an input file locally from either artifact or URL.
+
+    Priority:
+    1) presigned_url (or if file_path itself is an http(s) URL)
+    2) artifact + artifact_file_path
+    3) local file_path
+
+    Returns a local filesystem path that exists.
+    """
+    if presigned_url and file_path:
+        raise ValueError("Provide only one of presigned_url or file_path")
+
+    url = presigned_url
+    if url is None and file_path and is_http_url(file_path):
+        url = file_path
+
+    base_dir = (
+        Path(target_dir)
+        if target_dir is not None
+        else Path(tempfile.mkdtemp(prefix="biomni_input_"))
+    )
+
+    if url is not None:
+        name = filename_hint
+        if not name:
+            parsed = urlparse(url)
+            name = Path(parsed.path).name or "downloaded_file"
+        return download_http_url(url, base_dir / name)
+
+    if artifact is not None or artifact_file_path is not None:
+        if not artifact or not artifact_file_path:
+            raise ValueError("Both artifact and artifact_file_path are required")
+        name = filename_hint or Path(artifact_file_path).name
+        local_path = base_dir / name
+        asyncio.run(
+            download_artifact_file(
+                artifact=artifact,
+                file_path=artifact_file_path,
+                local_path=local_path,
+            ),
+        )
+        return local_path
+
+    if not file_path:
+        raise ValueError(
+            "No input provided: expected file_path, presigned_url, or artifact+artifact_file_path",
+        )
+
+    local = Path(file_path)
+    if not local.exists():
+        raise FileNotFoundError(f"Input file not found: {file_path}")
+    return local
 
 
 @functools.lru_cache(maxsize=8)
