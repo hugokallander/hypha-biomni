@@ -168,7 +168,7 @@ def publish_output_file_as_url(
                 "server_url": server_url,
                 "token": token,
                 "workspace": workspace,
-            }
+            },
         )
         # Get upload URL
         upload_url = await s3.put_file(s3_path)
@@ -182,70 +182,6 @@ def publish_output_file_as_url(
         return download_url
 
     return asyncio.run(_upload_and_presign())
-
-
-def materialize_input_file(
-    *,
-    file_path: str | None = None,
-    artifact: str | None = None,
-    artifact_file_path: str | None = None,
-    presigned_url: str | None = None,
-    target_dir: str | Path | None = None,
-    filename_hint: str | None = None,
-) -> Path:
-    """Materialize an input file locally from either artifact or URL.
-
-    Priority:
-    1) presigned_url (or if file_path itself is an http(s) URL)
-    2) artifact + artifact_file_path
-    3) local file_path
-
-    Returns a local filesystem path that exists.
-    """
-    if presigned_url and file_path:
-        raise ValueError("Provide only one of presigned_url or file_path")
-
-    url = presigned_url
-    if url is None and file_path and is_http_url(file_path):
-        url = file_path
-
-    base_dir = (
-        Path(target_dir)
-        if target_dir is not None
-        else Path(tempfile.mkdtemp(prefix="biomni_input_"))
-    )
-    base_dir.mkdir(parents=True, exist_ok=True)
-
-    if url is not None:
-        name = filename_hint
-        if not name:
-            parsed = urlparse(url)
-            name = Path(parsed.path).name or "downloaded_file"
-        return download_http_url(url, base_dir / name)
-
-    if artifact is not None or artifact_file_path is not None:
-        if not artifact or not artifact_file_path:
-            raise ValueError("Both artifact and artifact_file_path are required")
-        name = filename_hint or Path(artifact_file_path).name
-        local_path = base_dir / name
-        asyncio.run(
-            download_artifact_file(
-                artifact=artifact,
-                file_path=artifact_file_path,
-                local_path=local_path,
-            ),
-        )
-        return local_path
-
-    if not file_path:
-        raise ValueError(
-            "No input provided: expected file_path, presigned_url, or artifact+artifact_file_path",
-        )
-
-    local = Path(file_path)
-    if not local.exists():
-        raise FileNotFoundError(f"Input file not found: {file_path}")
-    return local
 
 
 def is_http_url(value: str) -> bool:
@@ -293,13 +229,39 @@ def download_http_url(
     """Download a presigned (or public) URL to a local file path."""
     local_path = Path(local_path)
     local_path.parent.mkdir(parents=True, exist_ok=True)
-    with requests.get(url, stream=True, timeout=timeout_s) as r:
-        r.raise_for_status()
-        with local_path.open("wb") as f:
-            for chunk in r.iter_content(chunk_size=1024 * 1024):
-                if chunk:
-                    f.write(chunk)
-    return local_path
+
+    async def _download() -> Path:
+        import httpx
+
+        dst = Path(local_path)
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        timeout = httpx.Timeout(timeout_s)
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            async with client.stream("GET", url) as resp:
+                resp.raise_for_status()
+                with dst.open("wb") as f:
+                    async for chunk in resp.aiter_bytes(chunk_size=1024 * 1024):
+                        if chunk:
+                            f.write(chunk)
+        return dst
+
+    return asyncio.run(_download())
+
+
+def _sanitize_filename_hint(name: str) -> str:
+    # Strip query strings that often appear in presigned URLs
+    name = name.split("?", 1)[0].split("&", 1)[0]
+    name = name.strip().strip("/\\")
+    if not name:
+        return "downloaded_file"
+
+    # Keep only a conservative set of characters for filesystem safety
+    safe_chars = set(
+        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-+"
+    )
+    cleaned = "".join(ch if ch in safe_chars else "_" for ch in name)
+    # Avoid absurdly long filenames
+    return cleaned[:180] or "downloaded_file"
 
 
 async def download_artifact_file(
@@ -365,18 +327,44 @@ def materialize_input_file(
         if target_dir is not None
         else Path(tempfile.mkdtemp(prefix="biomni_input_"))
     )
+    base_dir.mkdir(parents=True, exist_ok=True)
 
     if url is not None:
         name = filename_hint
         if not name:
             parsed = urlparse(url)
             name = Path(parsed.path).name or "downloaded_file"
+        name = _sanitize_filename_hint(str(name))
         return download_http_url(url, base_dir / name)
+
+    # Convenience: allow encoding artifact reference into `file_path` itself.
+    # Format: <artifact_id>#<artifact_file_path>
+    if (
+        artifact is None
+        and artifact_file_path is None
+        and file_path
+        and "#" in file_path
+        and not is_http_url(file_path)
+    ):
+        encoded_artifact, encoded_path = file_path.split("#", 1)
+        if encoded_artifact and encoded_path:
+            name = filename_hint or Path(encoded_path).name
+            name = _sanitize_filename_hint(str(name))
+            local_path = base_dir / name
+            asyncio.run(
+                download_artifact_file(
+                    artifact=encoded_artifact,
+                    file_path=encoded_path,
+                    local_path=local_path,
+                ),
+            )
+            return local_path
 
     if artifact is not None or artifact_file_path is not None:
         if not artifact or not artifact_file_path:
             raise ValueError("Both artifact and artifact_file_path are required")
         name = filename_hint or Path(artifact_file_path).name
+        name = _sanitize_filename_hint(str(name))
         local_path = base_dir / name
         asyncio.run(
             download_artifact_file(
@@ -538,7 +526,6 @@ def run_bash_script(script: str) -> str:
         # Run the Bash script with the current environment and working directory
         result = subprocess.run(
             [temp_file],
-            shell=True,
             capture_output=True,
             text=True,
             check=False,
@@ -1193,21 +1180,13 @@ def langchain_to_gradio_message(message):
                 gradio_message["content"] += f"{item['text']}\n"
                 gradio_messages.append(gradio_message)
             elif item["type"] == "tool_use":
-                if item["name"] == "run_python_repl":
-                    gradio_message["metadata"]["title"] = "🛠️ Writing code..."
-                    # input = "```python {code_block}```\n".format(code_block=item['input']["command"])
-                    gradio_message["metadata"]["log"] = "Executing Code block..."
-                    gradio_message["content"] = (
-                        f"##### Code: \n ```python \n {item['input']['command']} \n``` \n"
-                    )
-                else:
-                    gradio_message["metadata"][
-                        "title"
-                    ] = f"🛠️ Used tool ```{item['name']}```"
-                    to_print = ";".join(
-                        [i + ": " + str(j) for i, j in item["input"].items()],
-                    )
-                    gradio_message["metadata"]["log"] = f"🔍 Input -- {to_print}\n"
+                gradio_message["metadata"][
+                    "title"
+                ] = f"🛠️ Used tool ```{item['name']}```"
+                to_print = ";".join(
+                    [i + ": " + str(j) for i, j in item["input"].items()],
+                )
+                gradio_message["metadata"]["log"] = f"🔍 Input -- {to_print}\n"
                 gradio_message["metadata"]["status"] = "pending"
                 gradio_messages.append(gradio_message)
 

@@ -39,10 +39,15 @@ class TestMicrobiologyTools:
     async def test_segment_and_analyze_microbial_cells(
         self,
         hypha_service: RemoteService,
+        hypha_s3_upload_url,
+        pgm_image_bytes: bytes,
     ) -> None:
         """Test segmenting microbial cells."""
+        img_url = await hypha_s3_upload_url(
+            data=pgm_image_bytes, filename="test_bacteria.pgm"
+        )
         result = await hypha_service.segment_and_analyze_microbial_cells(
-            image_path="test_bacteria.tif",
+            image_path=img_url,
             output_dir="./test_output",
             min_cell_size=50,
         )

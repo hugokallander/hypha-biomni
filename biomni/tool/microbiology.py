@@ -1024,7 +1024,7 @@ def quantify_biofilm_biomass_crystal_violet(
 
 
 def segment_and_analyze_microbial_cells(
-    image_path, output_dir="./output", min_cell_size=50
+    image_path, output_dir="./output", min_cell_size=50, input_artifact=None
 ):
     """Perform automated cell segmentation and quantify morphological metrics from fluorescence microscopy images.
 
@@ -1053,8 +1053,17 @@ def segment_and_analyze_microbial_cells(
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
 
+    from biomni.utils import materialize_input_file
+
+    local_image_path = materialize_input_file(
+        file_path=image_path,
+        artifact=input_artifact,
+        artifact_file_path=image_path if input_artifact else None,
+        filename_hint=os.path.basename(str(image_path)),
+    )
+
     # Step 1: Load and preprocess the image
-    image = io.imread(image_path)
+    image = io.imread(str(local_image_path))
     if len(image.shape) > 2:  # Convert to grayscale if RGB
         image = color.rgb2gray(image)
 
@@ -1115,7 +1124,7 @@ def segment_and_analyze_microbial_cells(
     log = f"""
 Cell Segmentation and Morphology Analysis Research Log:
 ------------------------------------------------------
-Image processed: {image_path}
+Image processed: {local_image_path}
 Segmentation method: Otsu thresholding + Watershed
 
 Results Summary:

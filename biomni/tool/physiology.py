@@ -3,6 +3,7 @@ def reconstruct_3d_face_from_mri(
     output_dir="./output",
     subject_id="subject",
     threshold_value=300,
+    input_artifact=None,
 ):
     """Generate a 3D model of facial anatomy from MRI scans of the head and neck.
 
@@ -16,6 +17,8 @@ def reconstruct_3d_face_from_mri(
         Identifier for the subject, used in output filenames
     threshold_value : int
         Threshold value for initial segmentation of facial tissues
+    input_artifact : dict, optional
+        Artifact containing the input file (e.g. S3 URL)
 
     Returns
     -------
@@ -31,6 +34,15 @@ def reconstruct_3d_face_from_mri(
     import numpy as np
     import SimpleITK as sitk
     from skimage import measure
+
+    from biomni.utils import materialize_input_file
+
+    mri_file_path = materialize_input_file(
+        file_path=mri_file_path,
+        artifact=input_artifact,
+        artifact_file_path=mri_file_path if input_artifact else None,
+        filename_hint=os.path.basename(str(mri_file_path)),
+    )
 
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
@@ -238,6 +250,7 @@ def analyze_ciliary_beat_frequency(
     min_freq=0,
     max_freq=30,
     output_dir="./",
+    input_artifact=None,
 ):
     """Analyze ciliary beat frequency from high-speed video microscopy data using FFT analysis.
 
@@ -253,6 +266,8 @@ def analyze_ciliary_beat_frequency(
         Maximum frequency to consider in Hz (default: 30)
     output_dir : str, optional
         Directory to save output files (default: current directory)
+    input_artifact : dict, optional
+        Artifact containing the input file (e.g. S3 URL)
 
     Returns
     -------
@@ -267,6 +282,15 @@ def analyze_ciliary_beat_frequency(
     import numpy as np
     import pandas as pd
     from scipy.fftpack import fft
+
+    from biomni.utils import materialize_input_file
+
+    video_path = materialize_input_file(
+        file_path=video_path,
+        artifact=input_artifact,
+        artifact_file_path=video_path if input_artifact else None,
+        filename_hint=os.path.basename(str(video_path)),
+    )
 
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
@@ -397,6 +421,7 @@ def analyze_protein_colocalization(
     channel2_path,
     output_dir="./output",
     threshold_method="otsu",
+    input_artifact=None,
 ):
     """Analyze colocalization between two fluorescently labeled proteins in microscopy images.
 
@@ -427,9 +452,24 @@ def analyze_protein_colocalization(
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
 
+    from biomni.utils import materialize_input_file
+
+    local_channel1_path = materialize_input_file(
+        file_path=channel1_path,
+        artifact=input_artifact,
+        artifact_file_path=channel1_path if input_artifact else None,
+        filename_hint=os.path.basename(str(channel1_path)),
+    )
+    local_channel2_path = materialize_input_file(
+        file_path=channel2_path,
+        artifact=input_artifact,
+        artifact_file_path=channel2_path if input_artifact else None,
+        filename_hint=os.path.basename(str(channel2_path)),
+    )
+
     # Load images
-    img1 = io.imread(channel1_path)
-    img2 = io.imread(channel2_path)
+    img1 = io.imread(str(local_channel1_path))
+    img2 = io.imread(str(local_channel2_path))
 
     # Ensure images are same size
     if img1.shape != img2.shape:
@@ -649,7 +689,6 @@ def perform_cosinor_analysis(time_data, physiological_data, period=24.0):
             log += "\nNOTE: The low R-squared suggests a weak circadian pattern in this data.\n"
 
         return log
-
     except Exception as e:
         return f"Error in cosinor analysis: {e!s}"
 
@@ -659,6 +698,7 @@ def calculate_brain_adc_map(
     b_values,
     output_path="adc_map.nii.gz",
     mask_file_path=None,
+    input_artifact=None,
 ):
     """Calculate Apparent Diffusion Coefficient (ADC) map from diffusion-weighted MRI data.
 
@@ -677,6 +717,8 @@ def calculate_brain_adc_map(
         Path where the output ADC map will be saved (default: "adc_map.nii.gz").
     mask_file_path : str, optional
         Path to a binary mask file to limit ADC calculation to brain regions (default: None).
+    input_artifact : dict, optional
+        Artifact containing the input file (e.g. S3 URL)
 
     Returns
     -------
@@ -689,6 +731,22 @@ def calculate_brain_adc_map(
     import nibabel as nib
     import numpy as np
     from scipy.optimize import curve_fit
+
+    from biomni.utils import materialize_input_file
+
+    dwi_file_path = materialize_input_file(
+        file_path=dwi_file_path,
+        artifact=input_artifact,
+        artifact_file_path=dwi_file_path if input_artifact else None,
+        filename_hint=os.path.basename(str(dwi_file_path)),
+    )
+    if mask_file_path:
+        mask_file_path = materialize_input_file(
+            file_path=mask_file_path,
+            artifact=input_artifact,
+            artifact_file_path=mask_file_path if input_artifact else None,
+            filename_hint=os.path.basename(str(mask_file_path)),
+        )
 
     # Start research log
     research_log = "Brain Water Diffusion Mapping Research Log\n"
@@ -959,6 +1017,7 @@ def analyze_fatty_acid_composition_by_gc(
     tissue_type,
     sample_id,
     output_directory="./results",
+    input_artifact=None,
 ):
     """Analyzes fatty acid composition in tissue samples using gas chromatography data.
 
@@ -972,6 +1031,8 @@ def analyze_fatty_acid_composition_by_gc(
         Identifier for the sample being analyzed.
     output_directory : str, optional
         Directory where result files will be saved (default: "./results").
+    input_artifact : dict, optional
+        Artifact containing the input file (e.g. S3 URL)
 
     Returns
     -------
@@ -983,6 +1044,15 @@ def analyze_fatty_acid_composition_by_gc(
     from datetime import datetime
 
     import pandas as pd
+
+    from biomni.utils import materialize_input_file
+
+    gc_data_file = materialize_input_file(
+        file_path=gc_data_file,
+        artifact=input_artifact,
+        artifact_file_path=gc_data_file if input_artifact else None,
+        filename_hint=os.path.basename(str(gc_data_file)),
+    )
 
     os.makedirs(output_directory, exist_ok=True)
 
@@ -1348,14 +1418,9 @@ def simulate_thyroid_hormone_pharmacokinetics(
         for species in species_names:
             if "free" in species:  # Focus on free hormone concentrations
                 idx = species_names.index(species)
-                peak_conc = np.max(solution.y[idx])
+                peak_val = np.max(solution.y[idx])
                 peak_time = solution.t[np.argmax(solution.y[idx])]
-                final_conc = solution.y[idx][-1]
-
-                log += f"- {species}: Peak concentration of {peak_conc:.4g} at {peak_time:.2f} hours, "
-                log += f"final concentration of {final_conc:.4g}\n"
-
-        log += f"\nDetailed concentration profiles saved to: {output_file}\n"
+                log += f"  - Peak {species}: {peak_val:.2f} at {peak_time:.2f} hours\n"
 
         return log
     return f"Simulation failed: {solution.message}"
@@ -1367,6 +1432,7 @@ def quantify_amyloid_beta_plaques(
     threshold_method="otsu",
     min_plaque_size=50,
     manual_threshold=127,
+    input_artifact=None,
 ):
     import os
     from datetime import datetime
@@ -1375,6 +1441,15 @@ def quantify_amyloid_beta_plaques(
     from skimage import color, filters, io, measure, morphology
     from skimage.segmentation import clear_border
     from skimage.util import img_as_ubyte
+
+    from biomni.utils import materialize_input_file
+
+    image_path = materialize_input_file(
+        file_path=image_path,
+        artifact=input_artifact,
+        artifact_file_path=image_path if input_artifact else None,
+        filename_hint=os.path.basename(str(image_path)),
+    )
 
     os.makedirs(output_dir, exist_ok=True)
     original_image = io.imread(image_path)

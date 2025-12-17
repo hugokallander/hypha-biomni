@@ -14,6 +14,7 @@ dependencies:
   - pyarrow
   - pyyaml
   - requests
+  - httpx
   - tqdm
   - regex
   - sympy

@@ -13,6 +13,7 @@ notebooks/cache
 notebooks/\[draft*
 notebooks/\[scratch*
 notebooks/labbench/*
+save_folder/*
 scripts/save_folder/*
 scripts/\[draft*
 scripts/tmp_dir/*
@@ -227,3 +228,27 @@ data/ddinter_raw/
 # Sphinx build
 /docs/build/
 /docs/source/api/
+
+# Generated output files
+*.csv
+*.png
+*.parquet
+*.vcf
+output/
+test_output/
+crispr_results/
+gene_circuit_results/
+stability_test_results/
+annotation_results/
+atac_results/
+cn_analysis_results/
+ihc_results/
+segmentation_results/
+test_results/
+results/
+biomni-tools.txt
+mirdb.txt
+rw.txt
+miRDB_v6.0_prediction_result.txt
+optimized_sequence.txt
+original_sequence.txt

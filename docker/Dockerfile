@@ -90,6 +90,7 @@ RUN if [ "$INSTALL_EXTRAS" = "0" ]; then \
 
 ENV PATH=/opt/conda/envs/base/bin:/opt/conda/bin:$PATH \
     BIOMNI_DATA_PATH=/data \
+    BIOMNI_TEST_MODE=0 \
     HOME=/home/${MAMBA_USER} \
     XDG_CACHE_HOME=/home/${MAMBA_USER}/.cache \
     MAMBA_ROOT_PREFIX=/opt/conda

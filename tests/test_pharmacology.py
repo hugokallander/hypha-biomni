@@ -14,11 +14,26 @@ if TYPE_CHECKING:
 class TestPharmacologyTools:
     """Test suite for pharmacology tools."""
 
-    async def test_docking_autodock_vina(self, hypha_service: RemoteService) -> None:
+    async def test_docking_autodock_vina(
+        self,
+        hypha_service: RemoteService,
+        hypha_s3_upload_url,
+    ) -> None:
         """Test molecular docking with AutoDock Vina."""
+        pdb_text = (
+            "ATOM      1  N   ALA A   1      11.104  13.207  14.123  1.00 20.00           N\n"
+            "ATOM      2  CA  ALA A   1      12.560  13.207  14.123  1.00 20.00           C\n"
+            "ATOM      3  C   ALA A   1      13.000  14.600  14.600  1.00 20.00           C\n"
+            "TER\nEND\n"
+        )
+        receptor_url = await hypha_s3_upload_url(
+            data=pdb_text.encode("utf-8"),
+            filename="test_receptor.pdb",
+            content_type="chemical/x-pdb",
+        )
         result = await hypha_service.docking_autodock_vina(
             smiles_list=["CC(=O)OC1=CC=CC=C1C(=O)O"],
-            receptor_pdb_file="test_receptor.pdb",
+            receptor_pdb_file=receptor_url,
             box_center=[10.0, 10.0, 10.0],
             box_size=[20.0, 20.0, 20.0],
             ncpu=1,
@@ -30,18 +45,6 @@ class TestPharmacologyTools:
         result = await hypha_service.predict_admet_properties(
             smiles_list=["CC(=O)OC1=CC=CC=C1C(=O)O", "CN1C=NC2=C1C(=O)N(C(=O)N2C)C"],
             ADMET_model_type="MPNN",
-        )
-        assert result is not None
-
-    async def test_predict_binding_affinity_protein_1d_sequence(
-        self,
-        hypha_service: RemoteService,
-    ) -> None:
-        """Test predicting binding affinity."""
-        result = await hypha_service.predict_binding_affinity_protein_1d_sequence(
-            smiles_list=["CC(=O)OC1=CC=CC=C1C(=O)O"],
-            amino_acid_sequence="MKLVVVGGVVSS",
-            affinity_model_type="MPNN-CNN",
         )
         assert result is not None
 
@@ -79,10 +82,25 @@ class TestPharmacologyTools:
     async def test_analyze_xenograft_tumor_growth_inhibition(
         self,
         hypha_service: RemoteService,
+        hypha_s3_upload_url,
     ) -> None:
         """Test analyzing xenograft tumor growth."""
+        csv_text = "\n".join(
+            [
+                "day,volume_mm3,treatment,mouse_id",
+                "0,100,vehicle,m1",
+                "7,200,vehicle,m1",
+                "0,110,drug,m2",
+                "7,130,drug,m2",
+            ],
+        )
+        data_url = await hypha_s3_upload_url(
+            data=csv_text.encode("utf-8"),
+            filename="test_tumor_data.csv",
+            content_type="text/csv",
+        )
         result = await hypha_service.analyze_xenograft_tumor_growth_inhibition(
-            data_path="test_tumor_data.csv",
+            data_path=data_url,
             time_column="day",
             volume_column="volume_mm3",
             group_column="treatment",

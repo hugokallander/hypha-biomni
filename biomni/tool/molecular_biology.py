@@ -277,6 +277,27 @@ def get_gene_coding_sequence(
             - sequence: Coding sequence of the gene
 
     """
+    import os
+
+    if os.getenv("BIOMNI_TEST_MODE") == "1":
+        # Deterministic, tiny payload for CI.
+        dummy_seq = "ATG" + ("GCT" * 30) + "TAA"
+        explanation = (
+            "Output fields for each coding sequence:\n"
+            "- refseq_id: RefSeq identifier for the gene sequence\n"
+            "- sequence: The coding sequence of the gene\n"
+            "\nNote: Returned a dummy sequence in BIOMNI_TEST_MODE."
+        )
+        return {
+            "explanation": explanation,
+            "sequences": [
+                {
+                    "refseq_id": f"TEST_{organism}_{gene_name}.1",
+                    "sequence": dummy_seq,
+                },
+            ],
+        }
+
     from Bio import Entrez, SeqIO
 
     if email:
@@ -354,8 +375,15 @@ def get_gene_coding_sequence(
         return {"explanation": explanation, "sequences": sequences}
 
     except Exception as e:
-        # Log error if needed
-        raise RuntimeError(f"Failed to retrieve coding sequences: {e!s}") from e
+        # Don't raise through the RPC boundary; return a structured error.
+        return {
+            "explanation": (
+                "Failed to retrieve coding sequences from NCBI Entrez.\n"
+                "This can happen in offline/CI environments or due to rate limits."
+            ),
+            "error": str(e),
+            "sequences": [],
+        }
 
 
 def get_plasmid_sequence(

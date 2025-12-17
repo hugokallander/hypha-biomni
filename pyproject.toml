@@ -16,6 +16,7 @@ dependencies = [
     "pydantic",
     "langchain",
     "python-dotenv",
+    "httpx",
     "hypha-artifact>=0.2.4",
     "hypha-rpc",
 ]

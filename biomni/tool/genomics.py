@@ -46,18 +46,19 @@ def annotate_celltype_scRNA(
 
         return "\n".join(info) + " " + "; ".join(cluster_comp) + "\n"
 
-    from langchain_core.prompts import PromptTemplate
     # from langchain.chains import LLMChain
-
     import numpy as np
     import pandas as pd
     import scanpy as sc
+    from langchain_core.prompts import PromptTemplate
 
     steps = []
     steps.append(f"Loading AnnData from {data_dir}/{adata_filename}")
     adata = sc.read_h5ad(f"{data_dir}/{adata_filename}")
 
-    steps.append(f"Identifying marker genes for clusters defined by {cluster} clustering.")
+    steps.append(
+        f"Identifying marker genes for clusters defined by {cluster} clustering.",
+    )
     sc.tl.rank_genes_groups(adata, groupby="leiden", method="wilcoxon", use_raw=False)
     genes = pd.DataFrame(adata.uns["rank_genes_groups"]["names"]).head(20)
     scores = pd.DataFrame(adata.uns["rank_genes_groups"]["scores"]).head(20)
@@ -71,7 +72,11 @@ def annotate_celltype_scRNA(
     # TODO: this can be optimized
     czi_celltype_path = data_lake_path + "/czi_census_datasets_v4.parquet"
     df = pd.read_parquet(czi_celltype_path)
-    czi_celltype_set = {cell_type.strip() for cell_types in df["cell_type"] for cell_type in str(cell_types).split(";")}
+    czi_celltype_set = {
+        cell_type.strip()
+        for cell_types in df["cell_type"]
+        for cell_type in str(cell_types).split(";")
+    }
     czi_celltype = ", ".join(sorted(czi_celltype_set))
 
     prompt_template = f"""
@@ -91,7 +96,9 @@ No numbers before name or spaces before number.
     prompt = PromptTemplate(input_variables=["cluster_info"], template=prompt_template)
     chain = prompt | llm
 
-    steps.append("Annotating cell types of each cluster based on gene markers and transferred labels.")
+    steps.append(
+        "Annotating cell types of each cluster based on gene markers and transferred labels.",
+    )
     # valid_celltypes = set(czi_celltype.split(";"))
     cluster_annotations = {}
     annotation_reasons = []
@@ -114,13 +121,17 @@ No numbers before name or spaces before number.
                 response = str(response)
 
             try:
-                predicted_celltype, confidence, reason = [x.strip() for x in response.split(";", 2)]
-                if predicted_celltype in czi_celltype_set or predicted_celltype.lower() in czi_celltype_set:
+                predicted_celltype, confidence, reason = [
+                    x.strip() for x in response.split(";", 2)
+                ]
+                if (
+                    predicted_celltype in czi_celltype_set
+                    or predicted_celltype.lower() in czi_celltype_set
+                ):
                     cluster_annotations[str(_idx)] = predicted_celltype
                     annotation_reasons.append((predicted_celltype, reason))
                     break
-                else:
-                    cluster_info += "\nAssigned cell type name must be in cell ontology!"
+                cluster_info += "\nAssigned cell type name must be in cell ontology!"
             except ValueError:
                 cluster_info += "\nPlease follow the format: name; score; reason"
         print(f"Cluster {_idx}: {response}")
@@ -137,7 +148,9 @@ No numbers before name or spaces before number.
     adata.obs["cell_type"] = adata.obs[cluster].map(cluster_annotations)
     adata.obs["cell_type_reason"] = adata.obs["cell_type"].map(reason_dict).astype(str)
 
-    steps.append(f"Saving annotated adata to {data_dir}/annotated.h5ad, the annotations are in the 'cell_type' column.")
+    steps.append(
+        f"Saving annotated adata to {data_dir}/annotated.h5ad, the annotations are in the 'cell_type' column.",
+    )
     adata.write(f"{data_dir}/annotated.h5ad", compression="gzip")
 
     return "\n".join(steps)
@@ -176,26 +189,42 @@ def annotate_celltype_with_panhumanpy(
     Notes
     -----
     Performance is not ensured for diseased and/or non-human cells.
+
     """
     import json
     import shutil
     import subprocess
-    import sys
     import tempfile
 
     def conda_env_exists(env_name):
         try:
-            result = subprocess.run(["conda", "env", "list"], capture_output=True, text=True, check=True)
+            result = subprocess.run(
+                ["conda", "env", "list"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
             return any(env_name in line.split() for line in result.stdout.splitlines())
         except Exception:
             return False
 
     def create_panhumanpy_env(env_name):
         # Create env and install panhumanpy
-        subprocess.run(["conda", "create", "-y", "-n", env_name, "python=3.10"], check=True)
+        subprocess.run(
+            ["conda", "create", "-y", "-n", env_name, "python=3.10"],
+            check=True,
+        )
         # Install panhumanpy in the new env
         subprocess.run(
-            ["conda", "run", "-n", env_name, "pip", "install", "git+https://github.com/satijalab/panhumanpy.git"],
+            [
+                "conda",
+                "run",
+                "-n",
+                env_name,
+                "pip",
+                "install",
+                "git+https://github.com/satijalab/panhumanpy.git",
+            ],
             check=True,
         )
 
@@ -210,7 +239,8 @@ def annotate_celltype_with_panhumanpy(
     script_path = os.path.join(temp_dir, "run_panhumanpy.py")
     result_path = os.path.join(temp_dir, "result.json")
     with open(script_path, "w") as f:
-        f.write(f"""
+        f.write(
+            f"""
 import os
 import sys
 import json
@@ -225,7 +255,7 @@ except ImportError as e:
     sys.exit(1)
 
 adata_path = r'''{adata_path}'''
-feature_names_col = {repr(feature_names_col)}
+feature_names_col = {feature_names_col!r}
 refine = {refine}
 umap = {umap}
 output_dir = r'''{output_dir}'''
@@ -311,7 +341,8 @@ except Exception as e:
     with open(r'{result_path}', 'w') as out:
         out.write(json.dumps({{"error": str(e)}}))
     sys.exit(1)
-""")
+""",
+        )
 
     # 3. Run the script in the panhumanpy_env
     try:
@@ -395,7 +426,11 @@ def create_harmony_embeddings_scRNA(adata_filename, batch_key, data_dir):
     adata = sc.read_h5ad(f"{data_dir}/{adata_filename}")
 
     steps.append(f"Running Harmony integration with batch key: {batch_key}")
-    adata.obsm["X_harmony"] = harmonize(adata.obsm["X_pca"], adata.obs, batch_key=batch_key)
+    adata.obsm["X_harmony"] = harmonize(
+        adata.obsm["X_pca"],
+        adata.obs,
+        batch_key=batch_key,
+    )
 
     output_filename = f"{data_dir}/harmony_emb_data.h5ad"
     steps.append(f"Saving the Harmony embeddings to {output_filename}.")
@@ -424,7 +459,9 @@ def get_uce_embeddings_scRNA(
 
         steps.append("Successfully imported UCE main function")
     except Exception:
-        steps.append("Please install the UCE package first. Follow https://github.com/snap-stanford/UCE.git.")
+        steps.append(
+            "Please install the UCE package first. Follow https://github.com/snap-stanford/UCE.git.",
+        )
         return "\n".join(steps)
 
     from accelerate import Accelerator
@@ -432,7 +469,9 @@ def get_uce_embeddings_scRNA(
     _base_name = os.path.basename(adata_filename).split(".")[0]
     adata_file_proc = f"{data_dir}/{_base_name}_uce_adata.h5ad"
     if os.path.exists(adata_file_proc):
-        steps.append(f"{adata_file_proc} already exists, skipping. The UCE embeddings are stored as adata.obs['X_uce']")
+        steps.append(
+            f"{adata_file_proc} already exists, skipping. The UCE embeddings are stored as adata.obs['X_uce']",
+        )
         return "\n".join(steps)
 
     uce_dir = f"{DATA_ROOT}/UCE"
@@ -442,7 +481,9 @@ def get_uce_embeddings_scRNA(
     # Prepare and parse arguments
     if custom_args is None:
         custom_args = []
-    custom_args.extend(["--adata_path", f"{data_dir}/{adata_filename}", "--dir", f"{data_dir}/uce/"])
+    custom_args.extend(
+        ["--adata_path", f"{data_dir}/{adata_filename}", "--dir", f"{data_dir}/uce/"],
+    )
     parsed_args = parse_args_uce(custom_args)
     steps.append(f"Parsed arguments: {vars(parsed_args)}")
 
@@ -453,7 +494,9 @@ def get_uce_embeddings_scRNA(
     # Run UCE main function
     main(parsed_args, accelerator)
     steps.append("UCE main function completed successfully.")
-    steps.append(f"{adata_file_proc} is saved, the UCE embeddings are stored as adata.obs['X_uce']")
+    steps.append(
+        f"{adata_file_proc} is saved, the UCE embeddings are stored as adata.obs['X_uce']",
+    )
 
     return "\n".join(steps)
 
@@ -469,7 +512,9 @@ def map_to_ima_interpret_scRNA(adata_filename, data_dir, custom_args=None):
     adata = sc.read_h5ad(f"{data_dir}/{adata_filename}")
 
     if "X_uce" not in adata.obsm:
-        raise ValueError("Error: adata.obsm['X_uce'] not found. Please run get_uce_embeddings() first.")
+        raise ValueError(
+            "Error: adata.obsm['X_uce'] not found. Please run get_uce_embeddings() first.",
+        )
 
     steps.append("adata.obs['X_uce'] found. Proceeding with cell type mapping.")
 
@@ -489,7 +534,9 @@ def map_to_ima_interpret_scRNA(adata_filename, data_dir, custom_args=None):
     distances, indices = nn.kneighbors(adata.obsm["X_uce"])
 
     # Extract cell types of the nearest neighbors
-    mapped_cell_types = IMA_adata.obs["coarse_cell_type_yanay"].iloc[indices.flatten()].values
+    mapped_cell_types = (
+        IMA_adata.obs["coarse_cell_type_yanay"].iloc[indices.flatten()].values
+    )
 
     # from umap import UMAP
     if n_neighbors > 1:
@@ -499,7 +546,11 @@ def map_to_ima_interpret_scRNA(adata_filename, data_dir, custom_args=None):
             unique, counts = np.unique(x, return_counts=True)
             return unique[np.argmax(counts)]
 
-        mapped_cell_types = np.apply_along_axis(custom_mode, 1, mapped_cell_types.reshape(-1, n_neighbors))
+        mapped_cell_types = np.apply_along_axis(
+            custom_mode,
+            1,
+            mapped_cell_types.reshape(-1, n_neighbors),
+        )
 
     # Add mapped cell types and confidence scores to adata
     adata.obs["mapped_cell_type"] = mapped_cell_types
@@ -604,9 +655,7 @@ def gene_set_enrichment_analysis(
     """
     import gget
 
-    steps_log = (
-        f"Starting enrichment analysis for genes: {', '.join(genes)} using {database} database and top_k: {top_k}\n"
-    )
+    steps_log = f"Starting enrichment analysis for genes: {', '.join(genes)} using {database} database and top_k: {top_k}\n"
 
     if background_list:
         steps_log += f"Using background list with {len(background_list)} genes.\n"
@@ -614,7 +663,12 @@ def gene_set_enrichment_analysis(
     try:
         # Perform enrichment analysis with or without background list
         steps_log += f"Performing enrichment analysis using gget.enrichr with the {database} database...\n"
-        df = gget.enrichr(genes, database=database, background_list=background_list, plot=plot)
+        df = gget.enrichr(
+            genes,
+            database=database,
+            background_list=background_list,
+            plot=plot,
+        )
 
         # Limit to top K results
         steps_log += f"Filtering the top {top_k} enrichment results...\n"
@@ -643,7 +697,12 @@ def gene_set_enrichment_analysis(
         return f"An error occurred: {e}"
 
 
-def analyze_chromatin_interactions(hic_file_path, regulatory_elements_bed, output_dir="./output"):
+def analyze_chromatin_interactions(
+    hic_file_path,
+    regulatory_elements_bed,
+    output_dir="./output",
+    input_artifact=None,
+):
     """Analyze chromatin interactions from Hi-C data to identify enhancer-promoter interactions and TADs.
 
     Parameters
@@ -655,6 +714,8 @@ def analyze_chromatin_interactions(hic_file_path, regulatory_elements_bed, outpu
         (enhancers, promoters, CTCF sites, etc.)
     output_dir : str
         Directory to save output files (default: "./output")
+    input_artifact : dict, optional
+        Artifact containing the input file (e.g. S3 URL)
 
     Returns
     -------
@@ -666,6 +727,21 @@ def analyze_chromatin_interactions(hic_file_path, regulatory_elements_bed, outpu
     import numpy as np
     import pandas as pd
     from scipy import stats
+
+    from biomni.utils import materialize_input_file
+
+    hic_file_path = materialize_input_file(
+        file_path=hic_file_path,
+        artifact=input_artifact,
+        artifact_file_path=hic_file_path if input_artifact else None,
+        filename_hint=os.path.basename(str(hic_file_path)),
+    )
+    regulatory_elements_bed = materialize_input_file(
+        file_path=regulatory_elements_bed,
+        artifact=input_artifact,
+        artifact_file_path=regulatory_elements_bed if input_artifact else None,
+        filename_hint=os.path.basename(str(regulatory_elements_bed)),
+    )
 
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
@@ -687,20 +763,22 @@ def analyze_chromatin_interactions(hic_file_path, regulatory_elements_bed, outpu
         try:
             # Try different ways to check for weights
             if (
-                hasattr(c.bins(), "columns")
-                and "weight" in c.bins().columns
-                or hasattr(c.bins(), "keys")
-                and "weight" in c.bins()
-                or hasattr(c, "bins")
-                and callable(c.bins)
-                and "bins/weight" in c.bins()
+                (hasattr(c.bins(), "columns") and "weight" in c.bins().columns)
+                or (hasattr(c.bins(), "keys") and "weight" in c.bins())
+                or (
+                    hasattr(c, "bins")
+                    and callable(c.bins)
+                    and "bins/weight" in c.bins()
+                )
             ):
                 has_weights = True
         except Exception as e:
-            log.append(f"Warning: Could not check for balancing weights: {str(e)}")
+            log.append(f"Warning: Could not check for balancing weights: {e!s}")
 
         if not has_weights:
-            log.append("Warning: No balancing weights found in the cooler file. Using unbalanced data.")
+            log.append(
+                "Warning: No balancing weights found in the cooler file. Using unbalanced data.",
+            )
 
         # Function to get matrix with proper balancing option
         def get_matrix(chrom, balance_if_possible=True):
@@ -708,20 +786,20 @@ def analyze_chromatin_interactions(hic_file_path, regulatory_elements_bed, outpu
                 # Try to get balanced matrix if requested and available
                 if balance_if_possible and has_weights:
                     return c.matrix(balance=True).fetch(chrom)
-                else:
-                    return c.matrix(balance=False).fetch(chrom)
+                return c.matrix(balance=False).fetch(chrom)
             except Exception as e:
-                log.append(f"Warning: Error getting matrix with balance={balance_if_possible}: {str(e)}")
+                log.append(
+                    f"Warning: Error getting matrix with balance={balance_if_possible}: {e!s}",
+                )
                 # If balanced fails, try unbalanced as fallback
                 if balance_if_possible:
                     log.append("Falling back to unbalanced matrix")
                     return c.matrix(balance=False).fetch(chrom)
-                else:
-                    # If even unbalanced fails, raise the exception
-                    raise e
+                # If even unbalanced fails, raise the exception
+                raise e
 
     except Exception as e:
-        log.append(f"Error loading Hi-C data: {str(e)}")
+        log.append(f"Error loading Hi-C data: {e!s}")
         return "\n".join(log)
 
     # Step 2: Load regulatory elements
@@ -735,11 +813,17 @@ def analyze_chromatin_interactions(hic_file_path, regulatory_elements_bed, outpu
         log.append(f"Loaded {len(reg_elements)} regulatory elements")
 
         # Separate enhancers and promoters based on name field (assuming naming convention)
-        enhancers = reg_elements[reg_elements["name"].str.contains("enhancer", case=False)]
-        promoters = reg_elements[reg_elements["name"].str.contains("promoter", case=False)]
-        log.append(f"Identified {len(enhancers)} enhancers and {len(promoters)} promoters")
+        enhancers = reg_elements[
+            reg_elements["name"].str.contains("enhancer", case=False)
+        ]
+        promoters = reg_elements[
+            reg_elements["name"].str.contains("promoter", case=False)
+        ]
+        log.append(
+            f"Identified {len(enhancers)} enhancers and {len(promoters)} promoters",
+        )
     except Exception as e:
-        log.append(f"Error loading regulatory elements: {str(e)}")
+        log.append(f"Error loading regulatory elements: {e!s}")
         return "\n".join(log)
 
     # Step 3: Normalize Hi-C matrix using iterative correction
@@ -748,7 +832,7 @@ def analyze_chromatin_interactions(hic_file_path, regulatory_elements_bed, outpu
         # Cooler already implements iterative correction (IC)
         log.append("Applying iterative correction to normalize for technical biases")
     except Exception as e:
-        log.append(f"Error during normalization: {str(e)}")
+        log.append(f"Error during normalization: {e!s}")
 
     # Step 4: Identify significant interactions between regulatory elements
     log.append("\n## Step 4: Identifying significant interactions")
@@ -765,7 +849,7 @@ def analyze_chromatin_interactions(hic_file_path, regulatory_elements_bed, outpu
             try:
                 matrix = get_matrix(chrom, balance_if_possible=True)
             except Exception as e:
-                log.append(f"Error getting matrix for chromosome {chrom}: {str(e)}")
+                log.append(f"Error getting matrix for chromosome {chrom}: {e!s}")
                 log.append(f"Skipping chromosome {chrom}")
                 continue
 
@@ -774,7 +858,9 @@ def analyze_chromatin_interactions(hic_file_path, regulatory_elements_bed, outpu
             chrom_promoters = promoters[promoters["chrom"] == chrom]
 
             if len(chrom_enhancers) == 0 or len(chrom_promoters) == 0:
-                log.append(f"No enhancers or promoters found on chromosome {chrom}, skipping")
+                log.append(
+                    f"No enhancers or promoters found on chromosome {chrom}, skipping",
+                )
                 continue
 
             # For each enhancer, find interactions with promoters
@@ -801,7 +887,9 @@ def analyze_chromatin_interactions(hic_file_path, regulatory_elements_bed, outpu
                     expected = np.nanmean(diag_values) if len(diag_values) > 0 else 0
 
                     # Calculate significance (fold enrichment)
-                    fold_enrichment = interaction_strength / expected if expected > 0 else 0
+                    fold_enrichment = (
+                        interaction_strength / expected if expected > 0 else 0
+                    )
 
                     # Store significant interactions (fold enrichment > 2)
                     if fold_enrichment > 2:
@@ -816,17 +904,22 @@ def analyze_chromatin_interactions(hic_file_path, regulatory_elements_bed, outpu
                                 "promoter_name": prom["name"],
                                 "interaction_strength": interaction_strength,
                                 "fold_enrichment": fold_enrichment,
-                            }
+                            },
                         )
 
         # Define interactions file path (moved before the empty check)
-        interactions_file = os.path.join(output_dir, "enhancer_promoter_interactions.tsv")
+        interactions_file = os.path.join(
+            output_dir,
+            "enhancer_promoter_interactions.tsv",
+        )
 
         # Save interactions to file if any were found
         if interactions:
             interactions_df = pd.DataFrame(interactions)
             interactions_df.to_csv(interactions_file, sep="\t", index=False)
-            log.append(f"Identified {len(interactions)} significant enhancer-promoter interactions")
+            log.append(
+                f"Identified {len(interactions)} significant enhancer-promoter interactions",
+            )
             log.append(f"Saved interactions to {interactions_file}")
         else:
             # Create an empty file with headers if no interactions were found
@@ -841,14 +934,17 @@ def analyze_chromatin_interactions(hic_file_path, regulatory_elements_bed, outpu
                     "promoter_name",
                     "interaction_strength",
                     "fold_enrichment",
-                ]
+                ],
             ).to_csv(interactions_file, sep="\t", index=False)
             log.append("No significant enhancer-promoter interactions were identified")
             log.append(f"Created empty interactions file at {interactions_file}")
     except Exception as e:
-        log.append(f"Error identifying interactions: {str(e)}")
+        log.append(f"Error identifying interactions: {e!s}")
         # Ensure the interactions_file variable is defined even in case of error
-        interactions_file = os.path.join(output_dir, "enhancer_promoter_interactions.tsv")
+        interactions_file = os.path.join(
+            output_dir,
+            "enhancer_promoter_interactions.tsv",
+        )
 
     # Step 5: Call TADs using simple insulation score method
     log.append("\n## Step 5: Identifying Topologically Associated Domains (TADs)")
@@ -871,7 +967,7 @@ def analyze_chromatin_interactions(hic_file_path, regulatory_elements_bed, outpu
             try:
                 matrix = get_matrix(chrom, balance_if_possible=True)
             except Exception as e:
-                log.append(f"Error getting matrix for chromosome {chrom}: {str(e)}")
+                log.append(f"Error getting matrix for chromosome {chrom}: {e!s}")
                 log.append(f"Skipping chromosome {chrom}")
                 continue
 
@@ -879,7 +975,9 @@ def analyze_chromatin_interactions(hic_file_path, regulatory_elements_bed, outpu
             insulation_score = np.zeros(matrix.shape[0] - 2 * window_size)
             for i in range(window_size, matrix.shape[0] - window_size):
                 # Calculate sum of interactions crossing bin i
-                cross_interactions = np.sum(matrix[i - window_size : i, i : i + window_size])
+                cross_interactions = np.sum(
+                    matrix[i - window_size : i, i : i + window_size],
+                )
                 insulation_score[i - window_size] = cross_interactions
 
             # Normalize insulation score
@@ -912,23 +1010,29 @@ def analyze_chromatin_interactions(hic_file_path, regulatory_elements_bed, outpu
                                 "start": start_pos,
                                 "end": end_pos,
                                 "size_kb": (end_pos - start_pos) / 1000,
-                            }
+                            },
                         )
 
         # Save TADs to file if any were found
         tads_df = pd.DataFrame(tad_results)
         if not tads_df.empty:
             tads_df.to_csv(tads_file, sep="\t", index=False)
-            log.append(f"Identified {len(tad_results)} topologically associated domains")
+            log.append(
+                f"Identified {len(tad_results)} topologically associated domains",
+            )
             log.append(f"Average TAD size: {tads_df['size_kb'].mean():.2f} kb")
             log.append(f"Saved TADs to {tads_file}")
         else:
             # Create an empty file with headers if no TADs were found
-            pd.DataFrame(columns=["chrom", "start", "end", "size_kb"]).to_csv(tads_file, sep="\t", index=False)
+            pd.DataFrame(columns=["chrom", "start", "end", "size_kb"]).to_csv(
+                tads_file,
+                sep="\t",
+                index=False,
+            )
             log.append("No topologically associated domains were identified")
             log.append(f"Created empty TADs file at {tads_file}")
     except Exception as e:
-        log.append(f"Error calling TADs: {str(e)}")
+        log.append(f"Error calling TADs: {e!s}")
 
     # Step 6: Generate chromatin interaction map for visualization
     log.append("\n## Step 6: Generating chromatin interaction maps")
@@ -948,14 +1052,14 @@ def analyze_chromatin_interactions(hic_file_path, regulatory_elements_bed, outpu
                 np.save(matrix_file, matrix)
                 log.append(f"Saved contact matrix for {chrom} to {matrix_file}")
             except Exception as e:
-                log.append(f"Error getting matrix for chromosome {chrom}: {str(e)}")
+                log.append(f"Error getting matrix for chromosome {chrom}: {e!s}")
                 # Create an empty matrix file
                 np.save(matrix_file, np.zeros((10, 10)))  # Small placeholder
                 log.append(f"Saved empty placeholder matrix to {matrix_file}")
         else:
             log.append("No chromosomes available for matrix export")
     except Exception as e:
-        log.append(f"Error generating interaction maps: {str(e)}")
+        log.append(f"Error generating interaction maps: {e!s}")
 
     # Step 7: Summary
     log.append("\n## Summary")
@@ -966,7 +1070,9 @@ def analyze_chromatin_interactions(hic_file_path, regulatory_elements_bed, outpu
     interactions = interactions if "interactions" in locals() else []
     tad_results = tad_results if "tad_results" in locals() else []
 
-    log.append(f"- Identified {len(interactions)} significant enhancer-promoter interactions")
+    log.append(
+        f"- Identified {len(interactions)} significant enhancer-promoter interactions",
+    )
     log.append(f"- Called {len(tad_results)} topologically associated domains")
     log.append("\nOutput files:")
     log.append(f"- Enhancer-promoter interactions: {interactions_file}")
@@ -976,7 +1082,11 @@ def analyze_chromatin_interactions(hic_file_path, regulatory_elements_bed, outpu
     return "\n".join(log)
 
 
-def analyze_comparative_genomics_and_haplotypes(sample_fasta_files, reference_genome_path, output_dir="./output"):
+def analyze_comparative_genomics_and_haplotypes(
+    sample_fasta_files,
+    reference_genome_path,
+    output_dir="./output",
+):
     """Perform comparative genomics and haplotype analysis on multiple genome samples.
 
     This function aligns multiple genome samples to a reference, identifies variants,
@@ -1011,7 +1121,9 @@ def analyze_comparative_genomics_and_haplotypes(sample_fasta_files, reference_ge
     log.append(f"Analysis started at: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
     log.append(f"Reference genome: {reference_genome_path}")
     log.append(f"Number of samples: {len(sample_fasta_files)}")
-    log.append(f"Sample files: {', '.join(os.path.basename(f) for f in sample_fasta_files)}\n")
+    log.append(
+        f"Sample files: {', '.join(os.path.basename(f) for f in sample_fasta_files)}\n",
+    )
 
     # Step 1: Index reference genome for alignment
     log.append("## Step 1: Preparing Reference Genome")
@@ -1021,11 +1133,17 @@ def analyze_comparative_genomics_and_haplotypes(sample_fasta_files, reference_ge
 
         # Index reference genome
         log.append("Indexing reference genome with BWA...")
-        subprocess.run(["bwa", "index", reference_genome_path], check=True, stderr=subprocess.PIPE)
+        subprocess.run(
+            ["bwa", "index", reference_genome_path],
+            check=True,
+            stderr=subprocess.PIPE,
+        )
         log.append("Reference genome indexed successfully.\n")
     except (subprocess.CalledProcessError, FileNotFoundError):
         # If BWA is not available, use a simplified approach
-        log.append("BWA not available. Using simplified sequence comparison approach instead.\n")
+        log.append(
+            "BWA not available. Using simplified sequence comparison approach instead.\n",
+        )
 
     # Step 2: Align samples to reference and identify variants
     log.append("## Step 2: Sequence Alignment and Variant Identification")
@@ -1062,8 +1180,14 @@ def analyze_comparative_genomics_and_haplotypes(sample_fasta_files, reference_ge
             log.append("  - Using simplified sequence comparison")
 
             # Load reference and sample sequences
-            reference_seqs = {record.id: str(record.seq) for record in SeqIO.parse(reference_genome_path, "fasta")}
-            sample_seqs = {record.id: str(record.seq) for record in SeqIO.parse(sample_path, "fasta")}
+            reference_seqs = {
+                record.id: str(record.seq)
+                for record in SeqIO.parse(reference_genome_path, "fasta")
+            }
+            sample_seqs = {
+                record.id: str(record.seq)
+                for record in SeqIO.parse(sample_path, "fasta")
+            }
 
             # Simple variant detection by direct comparison
             for seq_id in set(reference_seqs.keys()) & set(sample_seqs.keys()):
@@ -1074,7 +1198,9 @@ def analyze_comparative_genomics_and_haplotypes(sample_fasta_files, reference_ge
                 min_len = min(len(ref_seq), len(sample_seq))
                 for i in range(min_len):
                     if ref_seq[i] != sample_seq[i]:
-                        variants.append(f"SNP at position {i + 1}: {ref_seq[i]} -> {sample_seq[i]}")
+                        variants.append(
+                            f"SNP at position {i + 1}: {ref_seq[i]} -> {sample_seq[i]}",
+                        )
                         # Limit to first 10 variants for demonstration
                         if len(variants) >= 10:
                             variants.append("... (more variants exist)")
@@ -1154,15 +1280,21 @@ def analyze_comparative_genomics_and_haplotypes(sample_fasta_files, reference_ge
         for group in haplotype_groups:
             f.write(f"  {group}:\n")
             f.write(f"    - Distinguishing variants: {random.randint(5, 30)}\n")
-            f.write(f"    - Estimated divergence time: {random.randint(1000, 10000)} years\n")
+            f.write(
+                f"    - Estimated divergence time: {random.randint(1000, 10000)} years\n",
+            )
 
     log.append(f"Haplotype analysis results saved to {haplotype_file}")
 
     # Step 5: Summary of findings
     log.append("\n## Summary of Findings")
-    log.append(f"- Analyzed {len(sample_fasta_files)} genome samples against the reference")
+    log.append(
+        f"- Analyzed {len(sample_fasta_files)} genome samples against the reference",
+    )
     log.append("- Identified variant patterns across samples")
-    log.append(f"- Determined haplotype structure with {len(haplotype_groups)} major groups")
+    log.append(
+        f"- Determined haplotype structure with {len(haplotype_groups)} major groups",
+    )
     log.append(f"- All results saved to {output_dir}")
 
     # Return the research log
@@ -1175,6 +1307,7 @@ def perform_chipseq_peak_calling_with_macs2(
     output_name="macs2_output",
     genome_size="hs",
     q_value=0.05,
+    input_artifact=None,
 ):
     """Perform ChIP-seq peak calling using MACS2 to identify genomic regions with significant binding.
 
@@ -1190,6 +1323,8 @@ def perform_chipseq_peak_calling_with_macs2(
         Effective genome size shorthand: 'hs' for human, 'mm' for mouse, etc. (default: "hs")
     q_value : float, optional
         q-value (minimum FDR) cutoff for peak calling (default: 0.05)
+    input_artifact : dict, optional
+        Artifact containing the input file (e.g. S3 URL)
 
     Returns
     -------
@@ -1199,6 +1334,21 @@ def perform_chipseq_peak_calling_with_macs2(
     """
     import datetime
     import subprocess
+
+    from biomni.utils import materialize_input_file
+
+    chip_seq_file = materialize_input_file(
+        file_path=chip_seq_file,
+        artifact=input_artifact,
+        artifact_file_path=chip_seq_file if input_artifact else None,
+        filename_hint=os.path.basename(str(chip_seq_file)),
+    )
+    control_file = materialize_input_file(
+        file_path=control_file,
+        artifact=input_artifact,
+        artifact_file_path=control_file if input_artifact else None,
+        filename_hint=os.path.basename(str(control_file)),
+    )
 
     # Create log with timestamp
     log = f"ChIP-seq Peak Calling with MACS2 - {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
@@ -1220,7 +1370,7 @@ def perform_chipseq_peak_calling_with_macs2(
             os.makedirs(output_dir, exist_ok=True)
             log += f"Created output directory: {output_dir}\n"
         except Exception as e:
-            log += f"Error creating output directory: {str(e)}\n"
+            log += f"Error creating output directory: {e!s}\n"
 
     # Log input parameters
     log += "Input Parameters:\n"
@@ -1244,7 +1394,7 @@ def perform_chipseq_peak_calling_with_macs2(
         log += "Please install MACS2 using: pip install macs2\n"
         return log
     except Exception as e:
-        log += f"Error checking for MACS2: {str(e)}\n"
+        log += f"Error checking for MACS2: {e!s}\n"
 
     # Construct MACS2 command
     macs2_cmd = [
@@ -1280,16 +1430,30 @@ def perform_chipseq_peak_calling_with_macs2(
     try:
         # Run MACS2
         log += "Running MACS2 peak calling...\n"
-        process = subprocess.run(macs2_cmd, capture_output=True, text=True, check=True, timeout=300)
+        process = subprocess.run(
+            macs2_cmd,
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=300,
+        )
 
         # Log stdout and stderr (truncate if too long)
         stdout_text = process.stdout
         if len(stdout_text) > 2000:
-            stdout_text = stdout_text[:1000] + "\n...[output truncated]...\n" + stdout_text[-1000:]
+            stdout_text = (
+                stdout_text[:1000]
+                + "\n...[output truncated]...\n"
+                + stdout_text[-1000:]
+            )
 
         stderr_text = process.stderr
         if stderr_text and len(stderr_text) > 2000:
-            stderr_text = stderr_text[:1000] + "\n...[output truncated]...\n" + stderr_text[-1000:]
+            stderr_text = (
+                stderr_text[:1000]
+                + "\n...[output truncated]...\n"
+                + stderr_text[-1000:]
+            )
 
         log += "MACS2 Standard Output:\n"
         log += stdout_text + "\n"
@@ -1314,7 +1478,7 @@ def perform_chipseq_peak_calling_with_macs2(
                             peak_count = sum(1 for _ in f)
                         log += f"\nTotal peaks identified: {peak_count}\n"
                     except Exception as e:
-                        log += f"Error reading peak file: {str(e)}\n"
+                        log += f"Error reading peak file: {e!s}\n"
             else:
                 log += f"- {file} (Not found)\n"
 
@@ -1336,12 +1500,6 @@ def perform_chipseq_peak_calling_with_macs2(
         log += "Error during MACS2 execution:\n"
         if e.stderr:
             log += e.stderr + "\n"
-        log += "Peak calling failed.\n"
-    except subprocess.TimeoutExpired:
-        log += "Error: MACS2 execution timed out after 300 seconds.\n"
-        log += "This may happen with very large input files or insufficient computational resources.\n"
-    except Exception as e:
-        log += f"An unexpected error occurred: {str(e)}\n"
 
     return log
 
@@ -1354,6 +1512,7 @@ def find_enriched_motifs_with_homer(
     output_dir="./homer_motifs",
     num_motifs=10,
     threads=4,
+    input_artifact=None,
 ):
     """Find DNA sequence motifs enriched in genomic regions using the HOMER motif discovery software.
 
@@ -1374,6 +1533,8 @@ def find_enriched_motifs_with_homer(
         Number of motifs to find (default: 10)
     threads : int, optional
         Number of CPU threads to use (default: 4)
+    input_artifact : dict, optional
+        Artifact containing the input file (e.g. S3 URL)
 
     Returns
     -------
@@ -1384,6 +1545,22 @@ def find_enriched_motifs_with_homer(
     import datetime
     import glob
     import subprocess
+
+    from biomni.utils import materialize_input_file
+
+    peak_file = materialize_input_file(
+        file_path=peak_file,
+        artifact=input_artifact,
+        artifact_file_path=peak_file if input_artifact else None,
+        filename_hint=os.path.basename(str(peak_file)),
+    )
+    if background_file:
+        background_file = materialize_input_file(
+            file_path=background_file,
+            artifact=input_artifact,
+            artifact_file_path=background_file if input_artifact else None,
+            filename_hint=os.path.basename(str(background_file)),
+        )
 
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
@@ -1422,7 +1599,7 @@ def find_enriched_motifs_with_homer(
         homer_cmd.extend(["-bg", background_file])
 
     log += "Executing HOMER with the following command:\n"
-    log += " ".join(homer_cmd) + "\n\n"
+    log += " ".join(str(x) for x in homer_cmd) + "\n\n"
 
     try:
         # Run HOMER
@@ -1432,7 +1609,11 @@ def find_enriched_motifs_with_homer(
         # Log stdout and stderr (truncate if too long)
         stdout_text = process.stdout
         if len(stdout_text) > 2000:
-            stdout_text = stdout_text[:1000] + "\n...[output truncated]...\n" + stdout_text[-1000:]
+            stdout_text = (
+                stdout_text[:1000]
+                + "\n...[output truncated]...\n"
+                + stdout_text[-1000:]
+            )
 
         log += "HOMER Standard Output (truncated if long):\n"
         log += stdout_text + "\n"
@@ -1498,26 +1679,24 @@ def find_enriched_motifs_with_homer(
                         # Show top 3 known motifs if available
                         for line in lines[1:4]:  # Skip header, show top 3
                             parts = line.strip().split("\t")
-                            if len(parts) >= 4:
+                            if len(parts) > 2:
                                 log += f"- {parts[0]} (p-value: {parts[2]})\n"
-
-        # Summarize results
-        log += "\n## Summary\n"
-        log += f"- Analyzed genomic regions from {peak_file}\n"
-        log += f"- Discovered {len(motif_files)} enriched motifs\n"
-        log += f"- All results saved to {output_dir}\n"
 
     except subprocess.CalledProcessError as e:
         log += "Error during HOMER execution:\n"
-        log += e.stderr + "\n"
-        log += "Motif discovery failed.\n"
+        if e.stderr:
+            log += e.stderr + "\n"
     except Exception as e:
-        log += f"An unexpected error occurred: {str(e)}\n"
+        log += f"An unexpected error occurred: {e!s}\n"
 
     return log
 
 
-def analyze_genomic_region_overlap(region_sets, output_prefix="overlap_analysis"):
+def analyze_genomic_overlaps(
+    region_sets,
+    output_prefix="overlap_analysis",
+    input_artifact=None,
+):
     """Analyze overlaps between two or more sets of genomic regions.
 
     Parameters
@@ -1528,6 +1707,8 @@ def analyze_genomic_region_overlap(region_sets, output_prefix="overlap_analysis"
         - A list of tuples/lists with format (chrom, start, end) or (chrom, start, end, name)
     output_prefix : str, optional
         Prefix for output files (default: "overlap_analysis")
+    input_artifact : dict, optional
+        Artifact containing the input file (e.g. S3 URL)
 
     Returns
     -------
@@ -1538,6 +1719,37 @@ def analyze_genomic_region_overlap(region_sets, output_prefix="overlap_analysis"
     from datetime import datetime
 
     import pandas as pd
+    import pybedtools
+
+    from biomni.utils import materialize_input_file
+
+    # Start research log
+    log = "# Genomic Region Overlap Analysis\n"
+    log += f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+
+    # Create BedTool objects from inputs
+    bedtools = []
+    set_names = []
+
+    log += "## Input Processing\n"
+    for i, regions in enumerate(region_sets):
+        set_name = f"Region_Set_{i + 1}"
+        set_names.append(set_name)
+
+        if isinstance(regions, str):
+            # Input is a file path
+            regions = materialize_input_file(
+                file_path=regions,
+                artifact=input_artifact,
+                artifact_file_path=regions if input_artifact else None,
+                filename_hint=os.path.basename(str(regions)),
+            )
+            if os.path.exists(regions):
+                bedtool = pybedtools.BedTool(regions)
+                log += f"- Loaded {set_name} from file: {regions}\n"
+            else:
+                log += f"- Error: File not found: {regions}\n"
+                continue
     import pybedtools
 
     # Start research log
@@ -1624,12 +1836,14 @@ def analyze_genomic_region_overlap(region_sets, output_prefix="overlap_analysis"
                             chrom_a = fields[0]
                             start_a = int(fields[1])
                             end_a = int(fields[2])
-                            chrom_b = fields[len(fields) // 2]  # Middle field is typically the start of second feature
+                            chrom_b = fields[
+                                len(fields) // 2
+                            ]  # Middle field is typically the start of second feature
                             identifier = f"{chrom_a}:{start_a}-{end_a}_{chrom_b}"
                             unique_overlaps.add(identifier)
                         except (ValueError, IndexError) as e:
                             # If parsing fails, try an alternative approach
-                            log += f"  Warning: Couldn't parse overlap width, falling back to alternative method: {str(e)}\n"
+                            log += f"  Warning: Couldn't parse overlap width, falling back to alternative method: {e!s}\n"
 
                             # Alternative: manually calculate overlap from coordinates
                             try:
@@ -1652,8 +1866,16 @@ def analyze_genomic_region_overlap(region_sets, output_prefix="overlap_analysis"
                     overlap_regions = len(unique_overlaps)
 
                     # Calculate percentages
-                    pct_of_set1 = (overlap_bp / stats[i]["Total_BP"]) * 100 if stats[i]["Total_BP"] > 0 else 0
-                    pct_of_set2 = (overlap_bp / stats[j]["Total_BP"]) * 100 if stats[j]["Total_BP"] > 0 else 0
+                    pct_of_set1 = (
+                        (overlap_bp / stats[i]["Total_BP"]) * 100
+                        if stats[i]["Total_BP"] > 0
+                        else 0
+                    )
+                    pct_of_set2 = (
+                        (overlap_bp / stats[j]["Total_BP"]) * 100
+                        if stats[j]["Total_BP"] > 0
+                        else 0
+                    )
 
                     results.append(
                         {
@@ -1663,11 +1885,13 @@ def analyze_genomic_region_overlap(region_sets, output_prefix="overlap_analysis"
                             "Overlap_BP": overlap_bp,
                             "Pct_of_Set1": pct_of_set1,
                             "Pct_of_Set2": pct_of_set2,
-                        }
+                        },
                     )
 
                     # Save detailed overlaps to file
-                    overlap_file = f"{output_prefix}_{set_names[i]}_{set_names[j]}_overlaps.bed"
+                    overlap_file = (
+                        f"{output_prefix}_{set_names[i]}_{set_names[j]}_overlaps.bed"
+                    )
                     overlap_with_bases.saveas(overlap_file)
 
                     log += f"- Between {set_names[i]} and {set_names[j]}:\n"
@@ -1688,12 +1912,12 @@ def analyze_genomic_region_overlap(region_sets, output_prefix="overlap_analysis"
                             "Overlap_BP": 0,
                             "Pct_of_Set1": 0,
                             "Pct_of_Set2": 0,
-                        }
+                        },
                     )
                     log += f"- No overlaps found between {set_names[i]} and {set_names[j]}\n\n"
             except Exception as e:
                 # Handle any errors during the intersection process
-                log += f"Error analyzing overlap between {set_names[i]} and {set_names[j]}: {str(e)}\n"
+                log += f"Error analyzing overlap between {set_names[i]} and {set_names[j]}: {e!s}\n"
                 results.append(
                     {
                         "Set1": set_names[i],
@@ -1703,7 +1927,7 @@ def analyze_genomic_region_overlap(region_sets, output_prefix="overlap_analysis"
                         "Pct_of_Set1": 0,
                         "Pct_of_Set2": 0,
                         "Error": str(e),
-                    }
+                    },
                 )
 
     # Save summary statistics to file

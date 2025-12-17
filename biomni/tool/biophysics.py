@@ -23,6 +23,8 @@ def predict_protein_disorder_regions(
 
     import requests
 
+    from biomni.utils import publish_output_file_as_url
+
     # Clean the input sequence
     protein_sequence = "".join(re.findall(r"[A-Za-z]", protein_sequence))
 
@@ -38,7 +40,16 @@ def predict_protein_disorder_regions(
         response = requests.post(url, data=payload)
         response.raise_for_status()
     except requests.exceptions.RequestException as e:
-        return f"Error accessing IUPred2A server: {e!s}"
+        # Keep contract stable: still emit an output file (with an error header)
+        # and return a presigned URL to it.
+        with open(output_file, "w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["error"])
+            writer.writerow([f"Error accessing IUPred2A server: {e!s}"])
+        return {
+            "url": publish_output_file_as_url(output_file),
+            "log": f"Error accessing IUPred2A server: {e!s}",
+        }
 
     # Step 2: Parse the results to extract disorder scores
     result_lines = response.text.split("\n")
@@ -58,7 +69,14 @@ def predict_protein_disorder_regions(
                 continue
 
     if not scores:
-        return "No valid prediction data was returned from the server."
+        with open(output_file, "w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["error"])
+            writer.writerow(["No valid prediction data was returned from the server."])
+        return {
+            "url": publish_output_file_as_url(output_file),
+            "log": "No valid prediction data was returned from the server.",
+        }
 
     # Step 3: Identify disordered regions
     disordered_regions = []
@@ -122,7 +140,10 @@ Disordered Regions:
 
     log += f"\nDetailed per-residue scores saved to: {output_file}"
 
-    return log
+    return {
+        "url": publish_output_file_as_url(output_file),
+        "log": log,
+    }
 
 
 def analyze_cell_morphology_and_cytoskeleton(

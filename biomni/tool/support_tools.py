@@ -1,35 +1,5 @@
-import sys
-from io import StringIO
-
 # Create a persistent namespace that will be shared across all executions
 _persistent_namespace = {}
-
-
-def run_python_repl(command: str) -> str:
-    """Executes the provided Python command in a persistent environment and returns the output.
-    Variables defined in one execution will be available in subsequent executions.
-    """
-
-    def execute_in_repl(command: str) -> str:
-        """Helper function to execute the command in the persistent environment."""
-        old_stdout = sys.stdout
-        sys.stdout = mystdout = StringIO()
-
-        # Use the persistent namespace
-        global _persistent_namespace
-
-        try:
-            # Execute the command in the persistent namespace
-            exec(command, _persistent_namespace)
-            output = mystdout.getvalue()
-        except Exception as e:
-            output = f"Error: {str(e)}"
-        finally:
-            sys.stdout = old_stdout
-        return output
-
-    command = command.strip("```").strip()
-    return execute_in_repl(command)
 
 
 def read_function_source_code(function_name: str) -> str:
@@ -64,7 +34,7 @@ def read_function_source_code(function_name: str) -> str:
 
         return source_code
     except (ImportError, AttributeError) as e:
-        return f"Error: Could not find function '{function_name}'. Details: {str(e)}"
+        return f"Error: Could not find function '{function_name}'. Details: {e!s}"
 
 
 # def request_human_feedback(question, context, reason_for_uncertainty):

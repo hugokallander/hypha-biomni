@@ -12,7 +12,7 @@ attribute usage in test files (text-level heuristic). So we keep calls explicit.
 
 from __future__ import annotations
 
-import textwrap
+import os
 import uuid
 
 import numpy as np
@@ -20,91 +20,65 @@ import pytest
 
 
 async def _remote_tmpdir(hypha_service, prefix: str = "biomni_test") -> str:
-    """Create a unique directory in the remote container and return its path."""
+    """Create a unique directory locally and return its path."""
     rid = uuid.uuid4().hex
     path = f"/tmp/{prefix}_{rid}"
-    code = f"""
-import os
-os.makedirs({path!r}, exist_ok=True)
-print({path!r})
-"""
-    out = await hypha_service.run_python_repl(textwrap.dedent(code))
-    assert path in str(out)
+    os.makedirs(path, exist_ok=True)
     return path
 
 
 async def _remote_write_text(hypha_service, path: str, content: str) -> None:
-    code = f"""
-from pathlib import Path
-Path({path!r}).parent.mkdir(parents=True, exist_ok=True)
-Path({path!r}).write_text({content!r}, encoding='utf-8')
-print('ok')
-"""
-    out = await hypha_service.run_python_repl(textwrap.dedent(code))
-    assert "ok" in str(out).lower()
+    from pathlib import Path
+
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    Path(path).write_text(content, encoding="utf-8")
 
 
 async def _remote_write_png_sequence(hypha_service, dir_path: str, n: int = 5) -> None:
-    """Write a simple PNG time-lapse sequence remotely using skimage."""
-    code = f"""
-import os
-import numpy as np
-from skimage import io
+    """Write a simple PNG time-lapse sequence locally using skimage."""
+    import numpy as np
+    from skimage import io
 
-os.makedirs({dir_path!r}, exist_ok=True)
+    os.makedirs(dir_path, exist_ok=True)
 
-for i in range({n}):
-    img = np.zeros((64, 64), dtype=np.uint8)
-    # moving bright blob
-    y = 10 + i*5
-    x = 10 + i*5
-    img[y:y+10, x:x+10] = 255
-    io.imsave(os.path.join({dir_path!r}, "frame_%03d.png" % i), img)
-
-print('ok')
-"""
-    out = await hypha_service.run_python_repl(textwrap.dedent(code))
-    assert "ok" in str(out).lower()
+    for i in range(n):
+        img = np.zeros((64, 64), dtype=np.uint8)
+        # moving bright blob
+        y = 10 + i * 5
+        x = 10 + i * 5
+        img[y : y + 10, x : x + 10] = 255
+        io.imsave(os.path.join(dir_path, "frame_%03d.png" % i), img)
 
 
 async def _remote_write_rgb_png(hypha_service, path: str) -> None:
-    code = f"""
-import numpy as np
-from skimage import io
+    import numpy as np
+    from skimage import io
 
-img = np.zeros((80, 120, 3), dtype=np.uint8)
-img[10:30, 10:50, 0] = 180
-img[40:70, 60:110, 1] = 200
-img[20:60, 30:90, 2] = 220
-io.imsave({path!r}, img)
-print('ok')
-"""
-    out = await hypha_service.run_python_repl(textwrap.dedent(code))
-    assert "ok" in str(out).lower()
+    img = np.zeros((80, 120, 3), dtype=np.uint8)
+    img[10:30, 10:50, 0] = 180
+    img[40:70, 60:110, 1] = 200
+    img[20:60, 30:90, 2] = 220
+    io.imsave(path, img)
 
 
 async def _remote_write_dwi_nifti(hypha_service, path: str) -> list[float]:
     """Write a tiny 4D DWI NIfTI (b=0 and b=1000) and return matching b-values."""
+    import nibabel as nib
+    import numpy as np
+
     bvals = [0.0, 1000.0]
-    code = f"""
-import numpy as np
-import nibabel as nib
 
-# 4D volume: (x,y,z,nb)
-shape = (4,4,2,2)
-# ensure strictly positive signals
-vol = np.ones(shape, dtype=np.float32)
-# baseline signal
-vol[:,:,:,0] *= 1000.0
-# diffusion-weighted signal
-vol[:,:,:,1] *= 300.0
+    # 4D volume: (x,y,z,nb)
+    shape = (4, 4, 2, 2)
+    # ensure strictly positive signals
+    vol = np.ones(shape, dtype=np.float32)
+    # baseline signal
+    vol[:, :, :, 0] *= 1000.0
+    # diffusion-weighted signal
+    vol[:, :, :, 1] *= 300.0
 
-img = nib.Nifti1Image(vol, affine=np.eye(4))
-nib.save(img, {path!r})
-print('ok')
-"""
-    out = await hypha_service.run_python_repl(textwrap.dedent(code))
-    assert "ok" in str(out).lower()
+    img = nib.Nifti1Image(vol, affine=np.eye(4))
+    nib.save(img, path)
     return bvals
 
 

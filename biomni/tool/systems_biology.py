@@ -77,6 +77,7 @@ def perform_flux_balance_analysis(
     constraints=None,
     objective_reaction=None,
     output_file="fba_results.csv",
+    input_artifact=None,
 ):
     """Perform Flux Balance Analysis (FBA) on a genome-scale metabolic network model.
 
@@ -95,6 +96,8 @@ def perform_flux_balance_analysis(
         If None, uses the model's default objective
     output_file : str, optional
         File name to save the flux distribution results
+    input_artifact : dict, optional
+        Artifact containing the input file (e.g. S3 URL)
 
     Returns
     -------
@@ -102,8 +105,19 @@ def perform_flux_balance_analysis(
         Research log summarizing the FBA process and results
 
     """
+    import os
+
     import cobra
     import pandas as pd
+
+    from biomni.utils import materialize_input_file
+
+    model_file = materialize_input_file(
+        file_path=model_file,
+        artifact=input_artifact,
+        artifact_file_path=model_file if input_artifact else None,
+        filename_hint=os.path.basename(str(model_file)),
+    )
 
     # Initialize research log
     log = "# Flux Balance Analysis (FBA) Research Log\n\n"
@@ -356,6 +370,7 @@ def simulate_metabolic_network_perturbation(
     perturbation_params,
     simulation_time=100,
     time_points=1000,
+    input_artifact=None,
 ):
     """Construct and simulate kinetic models of metabolic networks and analyze their responses to perturbations.
 
@@ -374,6 +389,8 @@ def simulate_metabolic_network_perturbation(
         Total simulation time (default: 100)
     time_points : int, optional
         Number of time points to simulate (default: 1000)
+    input_artifact : dict, optional
+        Artifact containing the input file (e.g. S3 URL)
 
     Returns
     -------
@@ -381,10 +398,21 @@ def simulate_metabolic_network_perturbation(
         Research log summarizing the steps taken and results obtained
 
     """
+    import os
+
     import cobra
     import numpy as np
     import pandas as pd
     from scipy.integrate import solve_ivp
+
+    from biomni.utils import materialize_input_file
+
+    model_file = materialize_input_file(
+        file_path=model_file,
+        artifact=input_artifact,
+        artifact_file_path=model_file if input_artifact else None,
+        filename_hint=os.path.basename(str(model_file)),
+    )
 
     # Step 1: Load the metabolic model
     try:
@@ -694,10 +722,12 @@ def simulate_protein_signaling_network(
     log += f"Results saved to: {output_file}\n\n"
 
     # Add summary statistics
-    log += "Summary of final protein concentrations:\n"
-    for i, protein in enumerate(proteins):
-        final_conc = solution.y[i, -1]
-        log += f"- {protein}: {final_conc:.4f}\n"
+    log += "Summary Statistics:\n"
+    for protein in proteins:
+        idx = protein_indices[protein]
+        final_conc = solution.y[idx, -1]
+        max_conc = np.max(solution.y[idx, :])
+        log += f"- {protein}: Final={final_conc:.4f}, Max={max_conc:.4f}\n"
 
     return log
 
@@ -708,6 +738,7 @@ def compare_protein_structures(
     chain_id1="A",
     chain_id2="A",
     output_prefix="protein_comparison",
+    input_artifact=None,
 ):
     """Compares two protein structures to identify structural differences and conformational changes.
 
@@ -723,6 +754,8 @@ def compare_protein_structures(
         Chain ID to analyze in the second structure (default: 'A')
     output_prefix : str, optional
         Prefix for output files (default: "protein_comparison")
+    input_artifact : dict, optional
+        Artifact containing the input file (e.g. S3 URL)
 
     Returns
     -------
@@ -730,11 +763,27 @@ def compare_protein_structures(
         A research log summarizing the structural comparison analysis
 
     """
+    import os
     import warnings
 
     import numpy as np
     from Bio.PDB import PDBIO, PDBParser, Select, Superimposer
     from Bio.PDB.PDBExceptions import PDBConstructionWarning
+
+    from biomni.utils import materialize_input_file
+
+    pdb_file1 = materialize_input_file(
+        file_path=pdb_file1,
+        artifact=input_artifact,
+        artifact_file_path=pdb_file1 if input_artifact else None,
+        filename_hint=os.path.basename(str(pdb_file1)),
+    )
+    pdb_file2 = materialize_input_file(
+        file_path=pdb_file2,
+        artifact=input_artifact,
+        artifact_file_path=pdb_file2 if input_artifact else None,
+        filename_hint=os.path.basename(str(pdb_file2)),
+    )
 
     # Suppress PDB parsing warnings
     warnings.filterwarnings("ignore", category=PDBConstructionWarning)

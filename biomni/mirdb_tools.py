@@ -61,7 +61,7 @@ async def list_mirdb_species() -> dict[str, object]:
         df = _load_dataset()
         species = sorted({_species_code(m) for m in df["miRNA"].unique()})
         return {"species_codes": species, "count": len(species)}
-    except (FileNotFoundError, KeyError) as exc:
+    except (FileNotFoundError, KeyError, ImportError) as exc:
         return {"error": str(exc)}
 
 
@@ -89,7 +89,7 @@ async def get_all_mirnas(
             "total": total,
             "species": species,
         }
-    except (FileNotFoundError, KeyError) as exc:
+    except (FileNotFoundError, KeyError, ImportError) as exc:
         return {"error": str(exc)}
 
 
@@ -128,7 +128,7 @@ async def get_targets_for_mirna(
             "total": total,
             "min_score": min_score,
         }
-    except (FileNotFoundError, KeyError, ValueError) as exc:
+    except (FileNotFoundError, KeyError, ValueError, ImportError) as exc:
         return {"error": str(exc)}
 
 

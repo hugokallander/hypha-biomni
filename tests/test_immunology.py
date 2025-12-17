@@ -30,10 +30,15 @@ class TestImmunologyTools:
     async def test_analyze_flow_cytometry_immunophenotyping(
         self,
         hypha_service: RemoteService,
+        hypha_s3_upload_url,
     ) -> None:
         """Test analyzing flow cytometry data."""
+        fcs_url = await hypha_s3_upload_url(
+            data=b"FCS3.1\n",  # minimal placeholder
+            filename="test_flow.fcs",
+        )
         result = await hypha_service.analyze_flow_cytometry_immunophenotyping(
-            fcs_file_path="test_flow.fcs",
+            fcs_file_path=fcs_url,
             gating_strategy={
                 "CD4+ T cells": [("CD3", ">", 1000), ("CD4", ">", 500)],
                 "CD8+ T cells": [("CD3", ">", 1000), ("CD8", ">", 500)],

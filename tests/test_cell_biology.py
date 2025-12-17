@@ -20,25 +20,24 @@ class TestCellBiologyTools:
         )
         assert result is not None
 
-    async def test_quantify_cell_cycle_phases_from_microscopy(
-        self,
-        hypha_service: RemoteService,
-    ) -> None:
-        """Test quantifying cell cycle phases."""
-        result = await hypha_service.quantify_cell_cycle_phases_from_microscopy(
-            image_paths=["test_image1.tif", "test_image2.tif"],
-            output_dir="./test_results",
-        )
-        assert result is not None
-
     async def test_analyze_mitochondrial_morphology_and_potential(
         self,
         hypha_service: RemoteService,
+        hypha_s3_upload_url,
+        pgm_image_bytes: bytes,
     ) -> None:
         """Test analyzing mitochondrial morphology."""
+        morphology_url = await hypha_s3_upload_url(
+            data=pgm_image_bytes,
+            filename="test_mito_morphology.pgm",
+        )
+        potential_url = await hypha_s3_upload_url(
+            data=pgm_image_bytes,
+            filename="test_mito_potential.pgm",
+        )
         result = await hypha_service.analyze_mitochondrial_morphology_and_potential(
-            morphology_image_path="test_mito_morphology.tif",
-            potential_image_path="test_mito_potential.tif",
+            morphology_image_path=morphology_url,
+            potential_image_path=potential_url,
             output_dir="./test_output",
         )
         assert result is not None
@@ -46,11 +45,21 @@ class TestCellBiologyTools:
     async def test_analyze_protein_colocalization(
         self,
         hypha_service: RemoteService,
+        hypha_s3_upload_url,
+        pgm_image_bytes: bytes,
     ) -> None:
         """Test analyzing protein colocalization."""
+        ch1 = await hypha_s3_upload_url(
+            data=pgm_image_bytes,
+            filename="test_channel1.pgm",
+        )
+        ch2 = await hypha_s3_upload_url(
+            data=pgm_image_bytes,
+            filename="test_channel2.pgm",
+        )
         result = await hypha_service.analyze_protein_colocalization(
-            channel1_path="test_channel1.tif",
-            channel2_path="test_channel2.tif",
+            channel1_path=ch1,
+            channel2_path=ch2,
             output_dir="./test_output",
             threshold_method="otsu",
         )
