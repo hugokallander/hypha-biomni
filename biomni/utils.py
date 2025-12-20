@@ -236,14 +236,26 @@ def download_http_url(
         dst = Path(local_path)
         dst.parent.mkdir(parents=True, exist_ok=True)
         timeout = httpx.Timeout(timeout_s)
+        headers = {"Accept-Encoding": "identity"}
+
         async with httpx.AsyncClient(timeout=timeout) as client:
-            async with client.stream("GET", url) as resp:
+            async with client.stream("GET", url, headers=headers) as resp:
                 resp.raise_for_status()
                 with dst.open("wb") as f:
                     async for chunk in resp.aiter_bytes(chunk_size=1024 * 1024):
                         if chunk:
                             f.write(chunk)
         return dst
+
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop and loop.is_running():
+        raise RuntimeError(
+            "download_http_url called from a running event loop. Use async version."
+        )
 
     return asyncio.run(_download())
 
@@ -257,7 +269,7 @@ def _sanitize_filename_hint(name: str) -> str:
 
     # Keep only a conservative set of characters for filesystem safety
     safe_chars = set(
-        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-+"
+        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-+",
     )
     cleaned = "".join(ch if ch in safe_chars else "_" for ch in name)
     # Avoid absurdly long filenames

@@ -61,7 +61,6 @@ class TestBiochemistryTools:
         hypha_service: RemoteService,
     ) -> None:
         """Test analyzing protein conservation."""
-        # try:
         result = await hypha_service.analyze_protein_conservation(
             protein_sequences=[
                 ">human\nMKLLVVVGGVVSSAAAAAAA",
@@ -70,12 +69,6 @@ class TestBiochemistryTools:
             ],
             output_dir="./test_output",
         )
-        # except Exception as e:
-        #     # Some deployed services still use an older implementation that
-        #     # imports a removed Biopython module.
-        #     if "Bio.Align.Applications" in str(e):
-        #         pytest.xfail("Remote service uses legacy Biopython alignment wrapper")
-        #     raise
         assert result is not None
 
     async def test_predict_protein_disorder_regions(

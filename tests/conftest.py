@@ -7,7 +7,6 @@ import contextlib
 import os
 import signal
 import threading
-import uuid
 from typing import TYPE_CHECKING
 
 import httpx
@@ -15,6 +14,8 @@ import pytest
 import pytest_asyncio
 from dotenv import load_dotenv
 from hypha_rpc import connect_to_server
+
+load_dotenv()
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Generator
@@ -157,15 +158,17 @@ async def hypha_service(
     and proper cleanup of resources.
     """
     load_dotenv(override=True)
+    token = os.getenv("HYPHA_TOKEN")
 
     server_config: dict[str, str | None] = {
         "server_url": server_url,
         "workspace": workspace,
-        "token": os.getenv("HYPHA_TOKEN"),
+        "token": token,
     }
     server = await connect_to_server(server_config)
     service_id = os.getenv("BIOMNI_SERVICE_ID", "biomni-test")
-    service = await server.get_service(f"hypha-agents/{service_id}", mode="last")
+    # Use the configured workspace instead of hardcoded 'hypha-agents'
+    service = await server.get_service(f"{workspace}/{service_id}", mode="last")
 
     yield service
 
@@ -174,14 +177,15 @@ async def hypha_service(
         await server.disconnect()
 
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture(scope="function")
 async def hypha_api(server_url: str, workspace: str) -> AsyncGenerator[object, None]:
     """Return a Hypha API connection for test utilities (e.g., S3 presigned URLs)."""
     load_dotenv(override=True)
+    token = os.getenv("HYPHA_TOKEN")
     server_config: dict[str, str | None] = {
         "server_url": server_url,
         "workspace": workspace,
-        "token": os.getenv("HYPHA_TOKEN"),
+        "token": token,
     }
     api = await connect_to_server(server_config)
     yield api
@@ -189,7 +193,7 @@ async def hypha_api(server_url: str, workspace: str) -> AsyncGenerator[object, N
         await api.disconnect()
 
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture(scope="function")
 async def hypha_s3_storage(hypha_api: object) -> object:
     """Return the Hypha public S3 storage service handle (cached per test session)."""
     # Keep this fast-failing; a hang here otherwise cascades into many timeouts.
@@ -199,7 +203,7 @@ async def hypha_s3_storage(hypha_api: object) -> object:
     )
 
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture(scope="function")
 async def httpx_client() -> AsyncGenerator[httpx.AsyncClient, None]:
     """Return a shared async HTTP client for the test session."""
     client = httpx.AsyncClient(
@@ -217,9 +221,7 @@ async def hypha_s3_upload_url(
     hypha_s3_storage: object,
     httpx_client: httpx.AsyncClient,
 ) -> AsyncGenerator[object, None]:
-    """Return an uploader that returns a presigned download URL."""
-    s3 = hypha_s3_storage
-    client = httpx_client
+    """Return an uploader that puts bytes into the Hypha S3 store and returns a URL."""
 
     async def _upload(
         *,
@@ -227,18 +229,26 @@ async def hypha_s3_upload_url(
         filename: str,
         content_type: str | None = None,
     ) -> str:
-        s3_path = f"biomni-tests/{uuid.uuid4()}/{filename}"
-        upload_url = await s3.put_file(s3_path)
-        headers = {"Content-Type": content_type} if content_type else None
-        resp = await client.put(upload_url, content=data, headers=headers)
-        resp.raise_for_status()
-        return await s3.get_file(s3_path)
+        # 1. Get presigned PUT URL
+        # The service expects 'path' and 'client_method'
+        # It returns a string URL
+        put_url = await hypha_s3_storage.generate_presigned_url(
+            path=filename,
+            client_method="put_object",
+        )
 
-    try:
-        yield _upload
-    finally:
-        # httpx client is session-scoped and closed by httpx_client fixture
-        pass
+        # 2. Upload via HTTP PUT
+        headers = {"Content-Type": content_type or "application/octet-stream"}
+        resp = await httpx_client.put(put_url, content=data, headers=headers)
+        resp.raise_for_status()
+
+        # 3. Get presigned GET URL
+        return await hypha_s3_storage.generate_presigned_url(
+            path=filename,
+            client_method="get_object",
+        )
+
+    yield _upload
 
 
 def _make_pgm_bytes(width: int = 64, height: int = 64) -> bytes:

@@ -316,8 +316,8 @@ def get_gene_coding_sequence(
 
         return record["IdList"][0]
 
-    def get_refseq_id(gene_id: str) -> str:
-        """Get RefSeq ID from gene record."""
+    def get_refseq_ids(gene_id: str) -> list[str]:
+        """Get RefSeq IDs from gene record."""
         with Entrez.efetch(
             db="gene",
             id=gene_id,
@@ -326,40 +326,74 @@ def get_gene_coding_sequence(
         ) as handle:
             gene_record = Entrez.read(handle)
 
+        # Try to find NM_ accessions (mRNA transcripts) first
+        nm_accessions = []
+
+        def find_nm(obj):
+            if isinstance(obj, dict):
+                for k, v in obj.items():
+                    if k == "Gene-commentary_accession" and str(v).startswith("NM_"):
+                        version = obj.get("Gene-commentary_version", "")
+                        full_id = f"{v}.{version}" if version else v
+                        if full_id not in nm_accessions:
+                            nm_accessions.append(full_id)
+                    find_nm(v)
+            elif isinstance(obj, list):
+                for item in obj:
+                    find_nm(item)
+
+        find_nm(gene_record)
+
+        if nm_accessions:
+            # Return up to 5 unique accessions to avoid timeouts
+            return nm_accessions[:5]
+
         try:
             locus = gene_record[0]["Entrezgene_locus"][0]
             accession = locus["Gene-commentary_accession"]
             version = locus["Gene-commentary_version"]
-            return f"{accession}.{version}"
+            return [f"{accession}.{version}"]
         except (KeyError, IndexError) as e:
             raise RuntimeError(f"Unable to process gene record: {e}") from None
 
-    def get_coding_sequences(refseq_id: str) -> list[dict[str, str]]:
-        """Extract coding sequences from RefSeq record."""
+    def get_coding_sequences(refseq_ids: list[str]) -> list[dict[str, str]]:
+        """Extract coding sequences from RefSeq record(s)."""
+        if not refseq_ids:
+            return []
+
+        id_str = ",".join(refseq_ids)
         with Entrez.efetch(
             db="nucleotide",
-            id=refseq_id,
+            id=id_str,
             rettype="gbwithparts",
             retmode="text",
         ) as handle:
-            seq_record = SeqIO.read(handle, "genbank")
+            # Use parse to handle multiple records
+            seq_records = list(SeqIO.parse(handle, "genbank"))
 
         sequences = []
-        for feature in seq_record.features:
-            if (
-                feature.type == "CDS"
-                and feature.qualifiers.get("gene", ["N/A"])[0] == gene_name
-            ):
-                cds_seq = feature.location.extract(seq_record).seq
-                sequences.append({"refseq_id": refseq_id, "sequence": str(cds_seq)})
+        for seq_record in seq_records:
+            is_nm = seq_record.id.startswith("NM_")
+            
+            for feature in seq_record.features:
+                if feature.type == "CDS":
+                    # Check gene name if present
+                    feat_gene = feature.qualifiers.get("gene", ["N/A"])[0]
+                    
+                    # For NM_ records, we are less strict about gene name matching
+                    # as the record was retrieved via the gene ID.
+                    # For NC_ records (genomic), we must match the gene name.
+                    if is_nm or feat_gene == gene_name:
+                        cds_seq = feature.location.extract(seq_record).seq
+                        sequences.append({"refseq_id": seq_record.id, "sequence": str(cds_seq)})
 
         return sequences
 
     # Main execution flow
     try:
         gene_id = search_gene()
-        refseq_id = get_refseq_id(gene_id)
-        sequences = get_coding_sequences(refseq_id)
+        refseq_ids = get_refseq_ids(gene_id)
+        sequences = get_coding_sequences(refseq_ids)
 
         explanation = (
             "Output fields for each coding sequence:\n"
