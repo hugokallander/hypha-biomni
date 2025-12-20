@@ -22,7 +22,9 @@ class TestSyntheticBiologyTools:
             species="human",
             num_guides=3,
         )
-        assert result is not None
+        assert isinstance(result, (str, dict))
+        if isinstance(result, dict):
+            assert "guides" in result or "error" in result
 
     async def test_perform_crispr_cas9_genome_editing(
         self,
@@ -34,7 +36,8 @@ class TestSyntheticBiologyTools:
             target_genomic_loci="ATGGCTAGCTAGCTAGCTAGCTAGCTAGCTGATGA",
             cell_tissue_type="HEK293T",
         )
-        assert result is not None
+        assert isinstance(result, str)
+        assert "CRISPR" in result
 
     async def test_analyze_crispr_genome_editing(
         self,
@@ -46,7 +49,8 @@ class TestSyntheticBiologyTools:
             edited_sequence="ATGGCTAGCTA---AGCTAGCTGA",
             guide_rna="GCTAGCTAGCTAGCTAGCTA",
         )
-        assert result is not None
+        assert isinstance(result, str)
+        assert "CRISPR" in result or "Editing" in result
 
     async def test_get_golden_gate_assembly_protocol(
         self,
@@ -59,7 +63,9 @@ class TestSyntheticBiologyTools:
             num_inserts=2,
             vector_amount_ng=75.0,
         )
-        assert result is not None
+        assert isinstance(result, (str, dict))
+        if isinstance(result, dict):
+            assert "title" in result or "steps" in result
 
     async def test_design_golden_gate_oligos(
         self,
@@ -72,7 +78,9 @@ class TestSyntheticBiologyTools:
             enzyme_name="BsaI",
             is_circular=True,
         )
-        assert result is not None
+        assert isinstance(result, (str, dict))
+        if isinstance(result, str):
+            assert "Oligos" in result or "Overhangs" in result
 
     async def test_get_bacterial_transformation_protocol(
         self,
@@ -83,7 +91,9 @@ class TestSyntheticBiologyTools:
             antibiotic="ampicillin",
             is_repetitive=False,
         )
-        assert result is not None
+        assert isinstance(result, (str, dict))
+        if isinstance(result, dict):
+            assert "title" in result or "steps" in result
 
     async def test_get_oligo_annealing_protocol(
         self,
@@ -91,4 +101,6 @@ class TestSyntheticBiologyTools:
     ) -> None:
         """Test getting oligo annealing protocol."""
         result = await hypha_service.get_oligo_annealing_protocol()
-        assert result is not None
+        assert isinstance(result, (str, dict))
+        if isinstance(result, dict):
+            assert "title" in result or "steps" in result

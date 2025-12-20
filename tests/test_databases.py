@@ -20,7 +20,9 @@ class TestDatabaseTools:
             prompt="Find information about human insulin",
             max_results=3,
         )
-        assert result is not None
+        assert isinstance(result, (str, dict))
+        if isinstance(result, dict):
+            assert "error" in result or "results" in result
 
     async def test_query_pdb(self, hypha_service: RemoteService) -> None:
         """Test querying PDB database."""
@@ -28,7 +30,9 @@ class TestDatabaseTools:
             prompt="Find structures of human hemoglobin",
             max_results=3,
         )
-        assert result is not None
+        assert isinstance(result, (str, dict))
+        if isinstance(result, dict):
+            assert "error" in result or "results" in result
 
     async def test_query_kegg(self, hypha_service: RemoteService) -> None:
         """Test querying KEGG database."""
@@ -36,7 +40,9 @@ class TestDatabaseTools:
             prompt="Find human glycolysis pathway",
             verbose=True,
         )
-        assert result is not None
+        assert isinstance(result, (str, dict))
+        if isinstance(result, dict):
+            assert "error" in result or "results" in result
 
     async def test_query_ensembl(self, hypha_service: RemoteService) -> None:
         """Test querying Ensembl database."""
@@ -44,7 +50,9 @@ class TestDatabaseTools:
             prompt="Get information about human BRCA2 gene",
             verbose=True,
         )
-        assert result is not None
+        assert isinstance(result, (str, dict))
+        if isinstance(result, dict):
+            assert "error" in result or "results" in result
 
     async def test_query_clinvar(self, hypha_service: RemoteService) -> None:
         """Test querying ClinVar database."""
@@ -52,7 +60,9 @@ class TestDatabaseTools:
             prompt="Find pathogenic BRCA1 variants",
             max_results=3,
         )
-        assert result is not None
+        assert isinstance(result, (str, dict))
+        if isinstance(result, dict):
+            assert "error" in result or "results" in result
 
     async def test_blast_sequence(self, hypha_service: RemoteService) -> None:
         """Test BLAST sequence search."""
@@ -61,12 +71,16 @@ class TestDatabaseTools:
             database="core_nt",
             program="blastn",
         )
-        assert result is not None
+        assert isinstance(result, (str, dict))
+        if isinstance(result, dict):
+            assert "hit_id" in result or "error" in result
 
     async def test_list_mirdb_species(self, hypha_service: RemoteService) -> None:
         """Test listing miRDB species."""
         result = await hypha_service.list_mirdb_species()
-        assert result is not None
+        assert isinstance(result, (str, dict))
+        if isinstance(result, dict):
+            assert "species_codes" in result
 
     async def test_get_targets_for_mirna(self, hypha_service: RemoteService) -> None:
         """Test getting targets for miRNA."""
@@ -74,4 +88,6 @@ class TestDatabaseTools:
             mirna_id="hsa-miR-21-5p",
             limit=50,
         )
-        assert result is not None
+        assert isinstance(result, (str, dict))
+        if isinstance(result, dict):
+            assert "targets" in result

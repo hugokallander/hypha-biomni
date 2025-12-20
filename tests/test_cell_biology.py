@@ -1,5 +1,8 @@
 """Tests for cell biology and microscopy analysis tools."""
 
+from collections.abc import Callable
+from typing import Any
+
 import pytest
 from hypha_rpc.rpc import RemoteService
 
@@ -18,12 +21,13 @@ class TestCellBiologyTools:
             output_dir="./test_results",
             threshold_method="otsu",
         )
-        assert result is not None
+        assert isinstance(result, str)
+        assert "Morphology" in result or "Cytoskeleton" in result or "Error" in result
 
     async def test_analyze_mitochondrial_morphology_and_potential(
         self,
         hypha_service: RemoteService,
-        hypha_s3_upload_url,
+        hypha_s3_upload_url: Callable[..., Any],
         pgm_image_bytes: bytes,
     ) -> None:
         """Test analyzing mitochondrial morphology."""
@@ -40,12 +44,13 @@ class TestCellBiologyTools:
             potential_image_path=potential_url,
             output_dir="./test_output",
         )
-        assert result is not None
+        assert isinstance(result, str)
+        assert "Mitochondria" in result or "Potential" in result
 
     async def test_analyze_protein_colocalization(
         self,
         hypha_service: RemoteService,
-        hypha_s3_upload_url,
+        hypha_s3_upload_url: Callable[..., Any],
         pgm_image_bytes: bytes,
     ) -> None:
         """Test analyzing protein colocalization."""
@@ -63,7 +68,8 @@ class TestCellBiologyTools:
             output_dir="./test_output",
             threshold_method="otsu",
         )
-        assert result is not None
+        assert isinstance(result, str)
+        assert "Colocalization" in result or "Pearson" in result
 
     async def test_segment_and_quantify_cells_in_multiplexed_images(
         self,
@@ -76,7 +82,10 @@ class TestCellBiologyTools:
             nuclear_channel_index=0,
             output_dir="./test_output",
         )
-        assert result is not None
+        assert isinstance(result, str)
+        assert (
+            "Segmentation" in result or "Quantification" in result or "Error" in result
+        )
 
     async def test_perform_facs_cell_sorting(
         self,
@@ -90,7 +99,8 @@ class TestCellBiologyTools:
             threshold_max=50000.0,
             output_file="sorted_cells.csv",
         )
-        assert result is not None
+        assert isinstance(result, str)
+        assert "FACS" in result or "Sorting" in result
 
     async def test_analyze_cfse_cell_proliferation(
         self,
@@ -101,4 +111,5 @@ class TestCellBiologyTools:
             fcs_file_path="test_cfse_data.fcs",
             cfse_channel="FL1-A",
         )
-        assert result is not None
+        assert isinstance(result, str)
+        assert "Proliferation" in result or "CFSE" in result

@@ -1,10 +1,12 @@
 """Coverage tests for Hypha-exposed Biomni tools.
 
 These are intentionally lightweight integration checks:
-- Ensure every tool described in `biomni.tool.tool_description.*` is present on the remote service.
+- Ensure every tool described in `biomni.tool.tool_description.*` is present on the
+  remote service.
 - Provide visibility into which tools are not yet exercised by higher-level tests.
 
-The goal is to prevent silent regressions where new tools are added but never exposed via Hypha.
+The goal is to prevent silent regressions where new tools are added but never exposed
+via Hypha.
 """
 
 from __future__ import annotations
@@ -19,6 +21,8 @@ from biomni.utils import read_module2api
 
 if TYPE_CHECKING:
     from hypha_rpc.rpc import RemoteService
+
+MAX_REPORT_TOOLS = 50
 
 
 def _all_tool_names() -> list[str]:
@@ -37,12 +41,13 @@ def _tools_called_in_tests() -> set[str]:
 
         tree = ast.parse(path.read_text(encoding="utf-8"))
         for node in ast.walk(tree):
-            if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
-                if (
-                    isinstance(node.func.value, ast.Name)
-                    and node.func.value.id == "hypha_service"
-                ):
-                    used.add(node.func.attr)
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id == "hypha_service"
+            ):
+                used.add(node.func.attr)
 
     return used
 
@@ -81,5 +86,6 @@ def test_report_untested_tools() -> None:
     # Use a no-op assertion so the message is visible in output when desired.
     assert True, (
         f"Untested tools ({len(untested)}): "
-        f"{', '.join(untested[:50])}{' ...' if len(untested) > 50 else ''}"
+        f"{', '.join(untested[:MAX_REPORT_TOOLS])}"
+        f"{' ...' if len(untested) > MAX_REPORT_TOOLS else ''}"
     )

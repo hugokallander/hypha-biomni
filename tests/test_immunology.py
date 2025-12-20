@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from hypha_rpc.rpc import RemoteService
 
 
@@ -25,12 +27,17 @@ class TestImmunologyTools:
             enzyme_type="collagenase",
             digestion_time_min=45,
         )
-        assert result is not None
+        assert isinstance(result, (str, dict))
+        if isinstance(result, dict):
+            assert "error" in result or "yield" in result or "log" in result
+        else:
+            # Output contains "CELL ISOLATION"
+            assert "ISOLATION" in result or "Isolation" in result or "Yield" in result
 
     async def test_analyze_flow_cytometry_immunophenotyping(
         self,
         hypha_service: RemoteService,
-        hypha_s3_upload_url,
+        hypha_s3_upload_url: Callable[..., Any],
     ) -> None:
         """Test analyzing flow cytometry data."""
         fcs_url = await hypha_s3_upload_url(
@@ -45,7 +52,16 @@ class TestImmunologyTools:
             },
             output_dir="./test_results",
         )
-        assert result is not None
+        assert isinstance(result, (str, dict))
+        if isinstance(result, dict):
+            assert "error" in result or "populations" in result
+        else:
+            # Output contains "Flow Cytometry Analysis Log"
+            assert (
+                "Flow Cytometry" in result
+                or "Immunophenotyping" in result
+                or "Population" in result
+            )
 
     async def test_analyze_cell_senescence_and_apoptosis(
         self,
@@ -55,7 +71,11 @@ class TestImmunologyTools:
         result = await hypha_service.analyze_cell_senescence_and_apoptosis(
             fcs_file_path="test_senescence.fcs",
         )
-        assert result is not None
+        assert isinstance(result, (str, dict))
+        if isinstance(result, dict):
+            assert "error" in result or "senescence" in result
+        else:
+            assert "Senescence" in result or "Apoptosis" in result or "Error" in result
 
     async def test_analyze_immunohistochemistry_image(
         self,
@@ -67,4 +87,8 @@ class TestImmunologyTools:
             protein_name="CD3",
             output_dir="./ihc_results",
         )
-        assert result is not None
+        assert isinstance(result, (str, dict))
+        if isinstance(result, dict):
+            assert "error" in result or "staining" in result
+        else:
+            assert "IHC" in result or "Staining" in result or "Error" in result

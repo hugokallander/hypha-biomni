@@ -25,7 +25,8 @@ class TestGenomicsTools:
             database="ontology",
             plot=False,
         )
-        assert result is not None
+        assert isinstance(result, str)
+        assert "enrichment analysis" in result or "P-value" in result
 
     async def test_get_gene_set_enrichment_analysis_supported_database_list(
         self,
@@ -35,7 +36,8 @@ class TestGenomicsTools:
         result = (
             await hypha_service.get_gene_set_enrichment_analysis_supported_database_list()  # noqa: E501
         )
-        assert result is not None
+        assert isinstance(result, list)
+        assert len(result) > 0
 
     async def test_get_rna_seq_archs4(self, hypha_service: RemoteService) -> None:
         """Test fetching RNA-seq data from ARCHS4."""
@@ -43,7 +45,8 @@ class TestGenomicsTools:
             gene_name="BRCA1",
             K=10,
         )
-        assert result is not None
+        assert isinstance(result, str)
+        assert "RNA-seq" in result or "TPM" in result
 
     async def test_perform_chipseq_peak_calling_with_macs2(
         self,
@@ -57,7 +60,8 @@ class TestGenomicsTools:
             genome_size="hs",
             q_value=0.05,
         )
-        assert result is not None
+        assert isinstance(result, str)
+        assert "Peak" in result or "MACS2" in result
 
     async def test_find_enriched_motifs_with_homer(
         self,
@@ -71,7 +75,8 @@ class TestGenomicsTools:
             output_dir="./homer_output",
             num_motifs=10,
         )
-        assert result is not None
+        assert isinstance(result, str)
+        assert "Motif" in result or "HOMER" in result
 
     async def test_analyze_chromatin_interactions(
         self,
@@ -83,7 +88,8 @@ class TestGenomicsTools:
             regulatory_elements_bed="test_elements.bed",
             output_dir="./test_output",
         )
-        assert result is not None
+        assert isinstance(result, str)
+        assert "Interaction" in result or "Chromatin" in result
 
     async def test_identify_transcription_factor_binding_sites(
         self,
@@ -95,7 +101,8 @@ class TestGenomicsTools:
             tf_name="GATA1",
             threshold=0.8,
         )
-        assert result is not None
+        assert isinstance(result, str)
+        assert "Binding" in result or "Site" in result
 
     async def test_simulate_demographic_history(
         self,
@@ -108,4 +115,5 @@ class TestGenomicsTools:
             demographic_model="constant",
             output_file="simulated.vcf",
         )
-        assert result is not None
+        assert isinstance(result, str)
+        assert "Simulation" in result or "Demographic" in result

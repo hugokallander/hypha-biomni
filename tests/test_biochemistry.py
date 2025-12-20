@@ -26,7 +26,8 @@ class TestBiochemistryTools:
             cd_signal_data=[5.2, 3.1, 1.5, -2.3, -4.5, -3.2, -1.0, 0.5],
             output_dir="./test_output",
         )
-        assert result is not None
+        assert isinstance(result, str)
+        assert "Circular Dichroism" in result or "Secondary Structure" in result
 
     async def test_analyze_enzyme_kinetics_assay(
         self,
@@ -39,7 +40,8 @@ class TestBiochemistryTools:
             enzyme_concentration=10.0,
             output_dir="./test_output",
         )
-        assert result is not None
+        assert isinstance(result, str)
+        assert "Enzyme Kinetics" in result or "Vmax" in result
 
     async def test_analyze_protease_kinetics(
         self,
@@ -54,7 +56,8 @@ class TestBiochemistryTools:
             output_prefix="test_protease",
             output_dir="./test_output",
         )
-        assert result is not None
+        assert isinstance(result, str)
+        assert "Protease Kinetics" in result
 
     async def test_analyze_protein_conservation(
         self,
@@ -69,7 +72,8 @@ class TestBiochemistryTools:
             ],
             output_dir="./test_output",
         )
-        assert result is not None
+        assert isinstance(result, str)
+        assert "Conservation" in result or "Alignment" in result
 
     async def test_predict_protein_disorder_regions(
         self,
@@ -84,6 +88,7 @@ class TestBiochemistryTools:
         assert isinstance(result, dict)
         assert result["url"].startswith(("http://", "https://"))
         assert isinstance(result.get("log"), str)
+        assert "Disorder" in result["log"] or "Error" in result["log"]
 
     async def test_calculate_physicochemical_properties(
         self,
@@ -93,4 +98,6 @@ class TestBiochemistryTools:
         result = await hypha_service.calculate_physicochemical_properties(
             smiles_string="CC(=O)OC1=CC=CC=C1C(=O)O",
         )
-        assert result is not None
+        assert isinstance(result, (str, dict))
+        if isinstance(result, str):
+            assert "Properties" in result or "Molecular Weight" in result

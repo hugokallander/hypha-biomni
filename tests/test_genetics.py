@@ -24,7 +24,9 @@ class TestGeneticsTools:
             min_length=15,
             search_reverse=True,
         )
-        assert result is not None
+        assert isinstance(result, (str, dict))
+        if isinstance(result, dict):
+            assert "orfs" in result or "summary_stats" in result
 
     async def test_get_gene_coding_sequence(self, hypha_service: RemoteService) -> None:
         """Test retrieving gene coding sequence."""
@@ -33,7 +35,9 @@ class TestGeneticsTools:
             organism="human",
             email="test@example.com",
         )
-        assert result is not None
+        assert isinstance(result, (str, dict))
+        if isinstance(result, dict):
+            assert "sequences" in result or "error" in result
 
     async def test_align_sequences(self, hypha_service: RemoteService) -> None:
         """Test aligning primer sequences."""
@@ -41,7 +45,9 @@ class TestGeneticsTools:
             long_seq="ATGGCTAGCTAGCTAGCTAGCTGATGA",
             short_seqs=["ATGGCT", "CATCAG"],
         )
-        assert result is not None
+        assert isinstance(result, (str, dict))
+        if isinstance(result, dict):
+            assert "sequences" in result or "error" in result
 
     async def test_find_sequence_mutations(self, hypha_service: RemoteService) -> None:
         """Test identifying mutations between sequences."""
@@ -49,7 +55,9 @@ class TestGeneticsTools:
             query_sequence="ATGGCTAGCTAG",
             reference_sequence="ATGGCAAGCTAG",
         )
-        assert result is not None
+        assert isinstance(result, (str, dict))
+        if isinstance(result, dict):
+            assert "mutations" in result or "success" in result
 
     async def test_design_primer(self, hypha_service: RemoteService) -> None:
         """Test designing a single primer."""
@@ -60,7 +68,9 @@ class TestGeneticsTools:
             min_gc=0.4,
             max_gc=0.6,
         )
-        assert result is not None
+        assert isinstance(result, (str, dict))
+        if isinstance(result, dict):
+            assert "sequence" in result or "tm" in result
 
     async def test_find_restriction_enzymes(self, hypha_service: RemoteService) -> None:
         """Test finding restriction sites."""
@@ -68,7 +78,9 @@ class TestGeneticsTools:
             sequence="GAATTCGCTAGCAAGCTT",
             is_circular=False,
         )
-        assert result is not None
+        assert isinstance(result, (str, dict))
+        if isinstance(result, dict):
+            assert "enzyme_sites" in result or "success" in result
 
     async def test_digest_sequence(self, hypha_service: RemoteService) -> None:
         """Test simulating restriction digest."""
@@ -77,7 +89,9 @@ class TestGeneticsTools:
             enzyme_names=["EcoRI", "HindIII"],
             is_circular=True,
         )
-        assert result is not None
+        assert isinstance(result, (str, dict))
+        if isinstance(result, dict):
+            assert "fragments" in result or "success" in result
 
     async def test_pcr_simple(self, hypha_service: RemoteService) -> None:
         """Test simulating PCR amplification."""
@@ -87,4 +101,6 @@ class TestGeneticsTools:
             reverse_primer="TCATCAG",
             circular=False,
         )
-        assert result is not None
+        assert isinstance(result, (str, dict))
+        if isinstance(result, dict):
+            assert "products" in result or "success" in result

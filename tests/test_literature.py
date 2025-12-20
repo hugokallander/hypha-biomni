@@ -21,7 +21,11 @@ class TestLiteratureTools:
             max_papers=3,
             max_retries=2,
         )
-        assert result is not None
+        assert isinstance(result, (str, dict))
+        if isinstance(result, dict):
+            assert "error" in result or "papers" in result
+        else:
+            assert "PubMed" in result or "CRISPR" in result or "PMID" in result
 
     async def test_query_arxiv(self, hypha_service: RemoteService) -> None:
         """Test querying arXiv for papers."""
@@ -29,14 +33,22 @@ class TestLiteratureTools:
             query="deep learning protein structure",
             max_papers=5,
         )
-        assert result is not None
+        assert isinstance(result, (str, dict))
+        if isinstance(result, dict):
+            assert "error" in result or "papers" in result
+        else:
+            assert "arXiv" in result or "Protein" in result or "Title" in result
 
     async def test_query_scholar(self, hypha_service: RemoteService) -> None:
         """Test querying Google Scholar."""
         result = await hypha_service.query_scholar(
             query="single cell RNA sequencing analysis",
         )
-        assert result is not None
+        assert isinstance(result, (str, dict))
+        if isinstance(result, dict):
+            assert "error" in result or "papers" in result
+        else:
+            assert "Scholar" in result or "Sequencing" in result or "Title" in result
 
     async def test_search_google(self, hypha_service: RemoteService) -> None:
         """Test Google search functionality."""
@@ -45,14 +57,26 @@ class TestLiteratureTools:
             num_results=3,
             language="en",
         )
-        assert result is not None
+        assert isinstance(result, (str, dict))
+        if isinstance(result, dict):
+            assert "error" in result or "results" in result
+        else:
+            # Allow empty string as it might indicate no results or silent failure in
+            # smoke test env
+            if not result:
+                return
+            assert "Google" in result or "PCR" in result or "Result" in result
 
     async def test_extract_url_content(self, hypha_service: RemoteService) -> None:
         """Test extracting content from a webpage."""
         result = await hypha_service.extract_url_content(
             url="https://www.ncbi.nlm.nih.gov/",
         )
-        assert result is not None
+        assert isinstance(result, (str, dict))
+        if isinstance(result, dict):
+            assert "error" in result or "content" in result
+        else:
+            assert "NCBI" in result or "National" in result or "Content" in result
 
     async def test_fetch_supplementary_info_from_doi(
         self,
@@ -63,4 +87,10 @@ class TestLiteratureTools:
             doi="10.1038/nature12373",
             output_dir="test_supplementary",
         )
-        assert result is not None
+        assert isinstance(result, (str, dict))
+        if isinstance(result, dict):
+            assert "error" in result or "files" in result
+        else:
+            assert (
+                "Supplementary" in result or "DOI" in result or "Downloaded" in result
+            )

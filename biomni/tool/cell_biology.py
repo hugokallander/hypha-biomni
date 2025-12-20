@@ -358,13 +358,24 @@ def quantify_and_cluster_cell_motility(
 
     # Create feature matrix for clustering
     feature_df = pd.DataFrame(cell_features)
-    feature_matrix = feature_df[["avg_speed", "directionality", "msd"]].values
+
+    # Ensure numeric types
+    cols = ["avg_speed", "directionality", "msd"]
+    for col in cols:
+        feature_df[col] = pd.to_numeric(feature_df[col], errors="coerce")
+
+    feature_matrix = feature_df[cols].values.astype(np.float64)
+
+    # Replace NaNs and Infs with 0
+    feature_matrix = np.nan_to_num(feature_matrix, nan=0.0, posinf=0.0, neginf=0.0)
 
     # Normalize features
-    feature_matrix = (feature_matrix - np.mean(feature_matrix, axis=0)) / np.std(
-        feature_matrix,
-        axis=0,
-    )
+    std_dev = np.std(feature_matrix, axis=0)
+    std_dev[std_dev == 0] = 1.0  # Avoid division by zero
+    feature_matrix = (feature_matrix - np.mean(feature_matrix, axis=0)) / std_dev
+
+    # Replace NaNs and Infs again (from normalization)
+    feature_matrix = np.nan_to_num(feature_matrix, nan=0.0, posinf=0.0, neginf=0.0)
 
     # Perform k-means clustering
     kmeans = KMeans(n_clusters=num_clusters, random_state=42)
